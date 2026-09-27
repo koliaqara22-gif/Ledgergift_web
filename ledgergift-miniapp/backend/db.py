@@ -1,0 +1,421 @@
+"""SQLite data layer for LedgerGift.
+
+Holds the exact same business logic as the original bot: users, balances,
+deals, admins, settings and balance history. It is shared by both the API
+server and the thin launcher bot.
+"""
+import random
+import sqlite3
+import string
+from contextlib import closing
+from dataclasses import dataclass, asdict
+
+from config import (
+    ADMIN_IDS,
+    CURRENCIES,
+    DATABASE_PATH,
+    PAYMENT_URL,
+    WORKER_IDS,
+)
+
+
+@dataclass
+class Deal:
+    tag: str
+    seller_id: int
+    seller_username: str
+    buyer_username: str
+    item_type: str
+    item_link: str
+    amount: float
+    currency: str
+    stars_count: int | None
+    status: str
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+def db() -> sqlite3.Connection:
+    connection = sqlite3.connect(DATABASE_PATH)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def init_db() -> None:
+    with closing(db()) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY,
+                username TEXT,
+                first_name TEXT,
+                lang TEXT NOT NULL DEFAULT 'ru',
+                rating REAL NOT NULL DEFAULT 0,
+                success_orders INTEGER NOT NULL DEFAULT 0,
+                success_volume REAL NOT NULL DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS balances (
+                user_id INTEGER NOT NULL,
+                currency TEXT NOT NULL,
+                amount REAL NOT NULL DEFAULT 0,
+                PRIMARY KEY (user_id, currency)
+            );
+            CREATE TABLE IF NOT EXISTS deals (
+                tag TEXT PRIMARY KEY,
+                seller_id INTEGER NOT NULL,
+                seller_username TEXT NOT NULL,
+                buyer_username TEXT NOT NULL,
+                item_type TEXT NOT NULL,
+                item_link TEXT NOT NULL,
+                amount REAL NOT NULL,
+                currency TEXT NOT NULL,
+                stars_count INTEGER,
+                status TEXT NOT NULL DEFAULT 'created',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS admins (
+                user_id INTEGER PRIMARY KEY,
+                added_by INTEGER,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS balance_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                currency TEXT NOT NULL,
+                amount REAL NOT NULL,
+                operation TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                deal_tag TEXT,
+                actor_id INTEGER,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        connection.execute(
+            "INSERT OR IGNORE INTO settings(key, value) VALUES('payment_url', ?)",
+            (PAYMENT_URL,),
+        )
+        connection.commit()
+
+
+# ---------------------------------------------------------------------------
+# Language
+# ---------------------------------------------------------------------------
+from config import LANGUAGE_OPTIONS  # noqa: E402
+
+
+def get_user_lang(user_id: int | None) -> str:
+    if not user_id:
+        return "ru"
+    with closing(db()) as connection:
+        row = connection.execute("SELECT lang FROM users WHERE id = ?", (user_id,)).fetchone()
+    return row["lang"] if row and row["lang"] in LANGUAGE_OPTIONS else "ru"
+
+
+def set_user_lang(user_id: int, lang: str) -> None:
+    with closing(db()) as connection:
+        connection.execute(
+            "INSERT INTO users(id, lang) VALUES(?, ?) ON CONFLICT(id) DO UPDATE SET lang = excluded.lang",
+            (user_id, lang if lang in LANGUAGE_OPTIONS else "ru"),
+        )
+        connection.commit()
+
+
+# ---------------------------------------------------------------------------
+# Stats / profile
+# ---------------------------------------------------------------------------
+def get_user_stats(user_id: int) -> sqlite3.Row | None:
+    with closing(db()) as connection:
+        return connection.execute(
+            "SELECT rating, success_orders, success_volume FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+
+
+def set_user_stats(user_id: int, orders: int, rating: float, volume: float = 0) -> None:
+    with closing(db()) as connection:
+        connection.execute(
+            """
+            INSERT INTO users(id, rating, success_orders, success_volume)
+            VALUES(?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                rating = excluded.rating,
+                success_orders = excluded.success_orders,
+                success_volume = excluded.success_volume
+            """,
+            (user_id, rating, orders, volume),
+        )
+        connection.commit()
+
+
+def increment_success_orders(user_id: int, amount: float = 0) -> None:
+    with closing(db()) as connection:
+        connection.execute(
+            """
+            INSERT INTO users(id, success_orders, success_volume)
+            VALUES(?, 1, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                success_orders = success_orders + 1,
+                success_volume = success_volume + excluded.success_volume
+            """,
+            (user_id, amount),
+        )
+        connection.commit()
+
+
+def get_user_profile_row(user_id: int) -> sqlite3.Row | None:
+    with closing(db()) as connection:
+        return connection.execute(
+            "SELECT id, username, first_name, rating, success_orders, success_volume FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+
+
+def top_users(order_by: str = "orders", limit: int = 10) -> list[sqlite3.Row]:
+    column = "success_volume" if order_by == "volume" else "success_orders"
+    with closing(db()) as connection:
+        return connection.execute(
+            f"""
+            SELECT id, username, first_name, rating, success_orders, success_volume
+            FROM users
+            WHERE success_orders > 0 OR success_volume > 0
+            ORDER BY {column} DESC, success_orders DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+
+def remember_user(user_id: int, username: str, first_name: str) -> None:
+    with closing(db()) as connection:
+        connection.execute(
+            """
+            INSERT INTO users(id, username, first_name)
+            VALUES(?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                username = excluded.username,
+                first_name = excluded.first_name
+            """,
+            (user_id, username or "", first_name or ""),
+        )
+        connection.commit()
+
+
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+def get_setting(key: str, default: str = "") -> str:
+    with closing(db()) as connection:
+        row = connection.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(key: str, value: str) -> None:
+    with closing(db()) as connection:
+        connection.execute(
+            "INSERT INTO settings(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value),
+        )
+        connection.commit()
+
+
+# ---------------------------------------------------------------------------
+# Balances
+# ---------------------------------------------------------------------------
+def record_balance_history(user_id, amount, currency, operation, reason, deal_tag=None, actor_id=None) -> None:
+    with closing(db()) as connection:
+        connection.execute(
+            """
+            INSERT INTO balance_history(user_id, currency, amount, operation, reason, deal_tag, actor_id)
+            VALUES(?, ?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, currency, amount, operation, reason, deal_tag, actor_id),
+        )
+        connection.commit()
+
+
+def add_balance(user_id, amount, currency, reason="manual_topup", deal_tag=None, actor_id=None) -> None:
+    with closing(db()) as connection:
+        connection.execute(
+            """
+            INSERT INTO balances(user_id, currency, amount)
+            VALUES(?, ?, ?)
+            ON CONFLICT(user_id, currency) DO UPDATE SET amount = amount + excluded.amount
+            """,
+            (user_id, currency, amount),
+        )
+        connection.commit()
+    record_balance_history(user_id, amount, currency, "credit", reason, deal_tag, actor_id)
+
+
+def get_balance(user_id: int, currency: str) -> float:
+    with closing(db()) as connection:
+        row = connection.execute(
+            "SELECT amount FROM balances WHERE user_id = ? AND currency = ?",
+            (user_id, currency),
+        ).fetchone()
+    return float(row["amount"]) if row else 0.0
+
+
+def get_balances(user_id: int) -> dict:
+    with closing(db()) as connection:
+        rows = connection.execute(
+            "SELECT currency, amount FROM balances WHERE user_id = ? ORDER BY currency",
+            (user_id,),
+        ).fetchall()
+    known = {row["currency"]: float(row["amount"]) for row in rows}
+    return {currency: known.get(currency, 0.0) for currency in CURRENCIES}
+
+
+def balance_history(user_id: int, limit: int = 10) -> list[dict]:
+    with closing(db()) as connection:
+        rows = connection.execute(
+            """
+            SELECT amount, currency, operation, reason, deal_tag, created_at
+            FROM balance_history
+            WHERE user_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (user_id, limit),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+# ---------------------------------------------------------------------------
+# Deals
+# ---------------------------------------------------------------------------
+def create_tag() -> str:
+    return "LG" + "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+
+def save_deal(data: dict, seller_id: int, seller_username: str) -> Deal:
+    tag = create_tag()
+    deal = Deal(
+        tag=tag,
+        seller_id=seller_id,
+        seller_username=seller_username,
+        buyer_username=data["buyer_username"].lstrip("@"),
+        item_type=data["item_type"],
+        item_link=data["item_link"],
+        amount=float(data["amount"]),
+        currency=data["currency"],
+        stars_count=data.get("stars_count"),
+        status="created",
+    )
+    with closing(db()) as connection:
+        connection.execute(
+            """
+            INSERT INTO deals(tag, seller_id, seller_username, buyer_username, item_type,
+                item_link, amount, currency, stars_count, status)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (deal.tag, deal.seller_id, deal.seller_username, deal.buyer_username, deal.item_type,
+             deal.item_link, deal.amount, deal.currency, deal.stars_count, deal.status),
+        )
+        connection.commit()
+    return deal
+
+
+def find_deal(tag: str) -> Deal | None:
+    with closing(db()) as connection:
+        row = connection.execute("SELECT * FROM deals WHERE tag = ?", (tag,)).fetchone()
+    if not row:
+        return None
+    return Deal(
+        tag=row["tag"], seller_id=row["seller_id"], seller_username=row["seller_username"],
+        buyer_username=row["buyer_username"], item_type=row["item_type"], item_link=row["item_link"],
+        amount=row["amount"], currency=row["currency"], stars_count=row["stars_count"], status=row["status"],
+    )
+
+
+def user_deals(user_id: int, username: str, limit: int = 12) -> list[Deal]:
+    """Recent deals where the user is the seller or assigned buyer."""
+    with closing(db()) as connection:
+        rows = connection.execute(
+            """SELECT tag, seller_id, seller_username, buyer_username, item_type, item_link,
+                      amount, currency, stars_count, status
+               FROM deals WHERE seller_id = ? OR lower(buyer_username) = ?
+               ORDER BY created_at DESC LIMIT ?""",
+            (user_id, (username or "").lower(), limit),
+        ).fetchall()
+    return [Deal(**dict(row)) for row in rows]
+
+
+def pay_deal_from_balance(tag: str, user_id: int) -> tuple[bool, str]:
+    with closing(db()) as connection:
+        row = connection.execute("SELECT * FROM deals WHERE tag = ?", (tag,)).fetchone()
+        if not row:
+            return False, "deal_not_found"
+        if row["status"] == "paid":
+            return False, "already_paid"
+        amount = float(row["amount"])
+        current = get_balance(user_id, row["currency"])
+        if current < amount:
+            return False, "insufficient_funds"
+        connection.execute(
+            "UPDATE balances SET amount = amount - ? WHERE user_id = ? AND currency = ?",
+            (amount, user_id, row["currency"]),
+        )
+        connection.execute("UPDATE deals SET status = 'paid' WHERE tag = ?", (tag,))
+        connection.commit()
+        record_balance_history(user_id, -amount, row["currency"], "debit", "deal_payment", tag)
+    return True, "ok"
+
+
+def release_deal_to_seller(tag: str) -> tuple[bool, str, Deal | None]:
+    deal = find_deal(tag)
+    if not deal:
+        return False, "deal_not_found", None
+    if deal.status == "completed":
+        return False, "already_completed", deal
+    if deal.status != "paid":
+        return False, "not_paid", deal
+    add_balance(deal.seller_id, deal.amount, deal.currency, reason="deal_release", deal_tag=deal.tag)
+    increment_success_orders(deal.seller_id, deal.amount)
+    with closing(db()) as connection:
+        connection.execute("UPDATE deals SET status = 'completed' WHERE tag = ?", (tag,))
+        connection.commit()
+    return True, "ok", deal
+
+
+# ---------------------------------------------------------------------------
+# Roles
+# ---------------------------------------------------------------------------
+def is_admin(user_id: int) -> bool:
+    if user_id in ADMIN_IDS:
+        return True
+    with closing(db()) as connection:
+        row = connection.execute("SELECT user_id FROM admins WHERE user_id = ?", (user_id,)).fetchone()
+    return bool(row)
+
+
+def is_owner(user_id: int) -> bool:
+    return user_id in ADMIN_IDS
+
+
+def is_staff(user_id: int) -> bool:
+    return is_admin(user_id) or user_id in WORKER_IDS
+
+
+def add_admin(user_id: int, added_by: int) -> None:
+    with closing(db()) as connection:
+        connection.execute(
+            "INSERT OR IGNORE INTO admins(user_id, added_by) VALUES(?, ?)",
+            (user_id, added_by),
+        )
+        connection.commit()
+
+
+def admin_user_ids() -> list[int]:
+    ids = set(ADMIN_IDS)
+    with closing(db()) as connection:
+        rows = connection.execute("SELECT user_id FROM admins").fetchall()
+    ids.update(int(row["user_id"]) for row in rows)
+    return sorted(ids)
