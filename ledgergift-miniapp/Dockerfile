@@ -10,5 +10,6 @@ COPY frontend ./frontend
 
 ENV PYTHONUNBUFFERED=1
 
-# Cloud Run provides PORT. The default keeps local container runs convenient.
-CMD ["sh", "-c", "uvicorn main:app --app-dir /app/backend --host 0.0.0.0 --port ${PORT:-8080}"]
+# Railway must run both the HTTP service and the Telegram long-polling bot.
+# The API stays in the background while bot.py remains the main process.
+CMD ["sh", "-c", "uvicorn main:app --app-dir /app/backend --host 0.0.0.0 --port ${PORT:-8080} & exec python /app/backend/bot.py"]
