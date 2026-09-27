@@ -379,9 +379,12 @@ async def admin_team(user: dict = Depends(current_owner)) -> dict:
 @app.get("/api/admin/active-deals")
 async def admin_active_deals(user: dict = Depends(current_admin)) -> dict:
     lang = db.get_user_lang(int(user["id"]))
+    deals = db.active_deals()
     return {
         "summary": db.active_deal_summary(),
-        "deals": [deal_public(deal, lang) for deal in db.active_deals()],
+        "deals": [deal_public(deal, lang) for deal in deals],
+        "workspaces": db.deal_workspaces([deal.tag for deal in deals]),
+        "team": db.team_members(),
     }
 
 
@@ -390,7 +393,27 @@ async def admin_deal(tag: str, user: dict = Depends(current_admin)) -> dict:
     deal = db.find_deal(tag.lstrip("#").upper())
     if not deal:
         raise HTTPException(status_code=404, detail="deal not found")
-    return {"deal": deal_public(deal, db.get_user_lang(int(user["id"])))}
+    return {
+        "deal": deal_public(deal, db.get_user_lang(int(user["id"]))),
+        "workspace": db.deal_workspaces([deal.tag]).get(deal.tag, {}),
+        "team": db.team_members(),
+    }
+
+
+class DealWorkspaceIn(BaseModel):
+    assigned_admin_id: int | None = None
+    note: str = Field(default="", max_length=300)
+
+
+@app.patch("/api/admin/deal/{tag}/workspace")
+async def admin_set_deal_workspace(tag: str, body: DealWorkspaceIn, user: dict = Depends(current_admin)) -> dict:
+    tag = tag.lstrip("#").upper()
+    if not db.find_deal(tag):
+        raise HTTPException(status_code=404, detail="deal not found")
+    if body.assigned_admin_id is not None and not db.is_admin(body.assigned_admin_id):
+        raise HTTPException(status_code=400, detail="unknown admin")
+    db.set_deal_workspace(tag, body.assigned_admin_id, body.note, int(user["id"]))
+    return {"ok": True}
 
 
 class AddBalanceIn(BaseModel):

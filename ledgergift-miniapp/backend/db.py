@@ -96,6 +96,13 @@ def init_db() -> None:
                 actor_id INTEGER,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS deal_workspace (
+                deal_tag TEXT PRIMARY KEY,
+                assigned_admin_id INTEGER,
+                note TEXT NOT NULL DEFAULT '',
+                updated_by INTEGER,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
             """
         )
         connection.execute(
@@ -511,3 +518,27 @@ def active_deal_summary() -> dict:
         ).fetchall()
     counts = {row["status"]: int(row["count"]) for row in rows}
     return {"created": counts.get("created", 0), "paid": counts.get("paid", 0)}
+
+
+def deal_workspaces(tags: list[str]) -> dict[str, dict]:
+    if not tags:
+        return {}
+    marks = ",".join("?" for _ in tags)
+    with closing(db()) as connection:
+        rows = connection.execute(
+            f"SELECT deal_tag, assigned_admin_id, note, updated_by, updated_at FROM deal_workspace WHERE deal_tag IN ({marks})",
+            tags,
+        ).fetchall()
+    return {row["deal_tag"]: dict(row) for row in rows}
+
+
+def set_deal_workspace(tag: str, assigned_admin_id: int | None, note: str, updated_by: int) -> None:
+    with closing(db()) as connection:
+        connection.execute(
+            """INSERT INTO deal_workspace(deal_tag, assigned_admin_id, note, updated_by)
+               VALUES(?, ?, ?, ?)
+               ON CONFLICT(deal_tag) DO UPDATE SET assigned_admin_id = excluded.assigned_admin_id,
+                 note = excluded.note, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP""",
+            (tag, assigned_admin_id, note.strip(), updated_by),
+        )
+        connection.commit()

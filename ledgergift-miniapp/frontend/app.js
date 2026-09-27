@@ -679,16 +679,50 @@
       const render = function (filter) {
         const visible = data.deals.filter(function (deal) { return filter === "all" || deal.status === filter; });
         const rows = visible.length ? '<div class="deal-history">' + visible.map(function (deal) {
-          return '<button class="deal-history-row" data-active-deal="' + esc(deal.tag) + '"><span><b>#' + esc(deal.tag) + '</b><small>@' + esc(deal.seller_username) + ' → @' + esc(deal.buyer_username) + '</small></span><span><b>' + esc(deal.amount_label) + ' ' + esc(deal.currency) + '</b><small>' + esc(statusLabel(deal.status)) + '</small></span></button>';
+          const workspace = data.workspaces[deal.tag] || {};
+          const manager = data.team.find(function (member) { return member.id === workspace.assigned_admin_id; });
+          const owner = manager ? teamName(manager) : t("adm_unassigned");
+          return '<button class="deal-history-row" data-active-deal="' + esc(deal.tag) + '"><span><b>#' + esc(deal.tag) + '</b><small>@' + esc(deal.seller_username) + ' → @' + esc(deal.buyer_username) + '</small></span><span><b>' + esc(deal.amount_label) + ' ' + esc(deal.currency) + '</b><small class="deal-owner">♜ ' + esc(owner) + ' · ' + esc(statusLabel(deal.status)) + '</small></span></button>';
         }).join("") + '</div>' : '<p class="muted">' + esc(t("adm_no_active")) + '</p>';
         panel.querySelector("#activeRows").innerHTML = rows;
-        panel.querySelectorAll("[data-active-deal]").forEach(function (button) { button.addEventListener("click", function () { go("deal", button.getAttribute("data-active-deal")); }); });
+        panel.querySelectorAll("[data-active-deal]").forEach(function (button) { button.addEventListener("click", function () { showDealWorkspace(button.getAttribute("data-active-deal")); }); });
       };
       panel.innerHTML = '<div class="active-summary"><button class="active-stat" data-active-filter="created"><b>' + data.summary.created + '</b><small>' + esc(t("adm_wait_payment")) + '</small></button>' +
         '<button class="active-stat paid" data-active-filter="paid"><b>' + data.summary.paid + '</b><small>' + esc(t("adm_wait_item")) + '</small></button></div>' +
         '<div class="active-filter"><button class="seg active" data-active-filter="all">' + esc(t("adm_all_active")) + '</button><button class="seg" data-active-filter="created">' + esc(t("adm_wait_payment")) + '</button><button class="seg" data-active-filter="paid">' + esc(t("adm_wait_item")) + '</button></div><div id="activeRows"></div>';
       panel.querySelectorAll("[data-active-filter]").forEach(function (button) { button.addEventListener("click", function () { render(button.getAttribute("data-active-filter")); }); });
       render("all");
+    } catch (e) { panel.innerHTML = '<p class="neg">' + esc(errText(e)) + '</p>'; }
+  }
+
+  async function showDealWorkspace(tag) {
+    const panel = document.getElementById("admPanel");
+    panel.innerHTML = '<div class="loader"><div class="spin"></div></div>';
+    try {
+      const data = await api("/api/admin/deal/" + encodeURIComponent(tag));
+      const deal = data.deal, workspace = data.workspace || {};
+      const options = '<option value="">' + esc(t("adm_unassigned")) + '</option>' + data.team.map(function (member) {
+        return '<option value="' + member.id + '"' + (member.id === workspace.assigned_admin_id ? ' selected' : '') + '>' + esc(teamName(member)) + '</option>';
+      }).join("");
+      panel.innerHTML = '<button class="back-link" id="backToDeals">‹ ' + esc(t("adm_active")) + '</button>' +
+        '<div class="workspace-title"><b>#' + esc(deal.tag) + '</b><small>' + esc(deal.amount_label) + ' ' + esc(deal.currency) + ' · ' + esc(statusLabel(deal.status)) + '</small></div>' +
+        '<div class="card workspace-card">' +
+          '<label class="fld"><span>' + esc(t("adm_assign")) + '</span><select class="field" id="workspaceMember">' + options + '</select></label>' +
+          '<label class="fld"><span>' + esc(t("adm_note")) + '</span><textarea class="field workspace-note" id="workspaceNote" maxlength="300" placeholder="' + esc(t("adm_note_hint")) + '">' + esc(workspace.note || "") + '</textarea></label>' +
+          '<button class="btn primary block" id="workspaceSave">' + esc(t("adm_save_workspace")) + '</button></div>' +
+        '<button class="btn ghost block" id="openDeal">' + esc(t("adm_open_deal")) + '</button>';
+      document.getElementById("backToDeals").addEventListener("click", showActiveDeals);
+      document.getElementById("openDeal").addEventListener("click", function () { go("deal", deal.tag); });
+      document.getElementById("workspaceSave").addEventListener("click", async function () {
+        const selected = document.getElementById("workspaceMember").value;
+        try {
+          await api("/api/admin/deal/" + encodeURIComponent(deal.tag) + "/workspace", { method: "PATCH", body: {
+            assigned_admin_id: selected ? parseInt(selected, 10) : null,
+            note: document.getElementById("workspaceNote").value.trim()
+          } });
+          toast(t("done")); showDealWorkspace(deal.tag);
+        } catch (e) { toast(errText(e)); }
+      });
     } catch (e) { panel.innerHTML = '<p class="neg">' + esc(errText(e)) + '</p>'; }
   }
 
