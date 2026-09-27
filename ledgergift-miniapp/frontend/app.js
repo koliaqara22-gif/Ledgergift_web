@@ -542,6 +542,7 @@
     items += item("addbalance", "\ud83d\udcb3", t("adm_addbalance"));
     items += item("user", "\ud83d\udc64", t("adm_user"));
     items += item("deal", "\ud83d\udce6", t("adm_deal"));
+    items += item("active", "\u26a1", t("adm_active"));
     items += item("stats", "\ud83d\udcca", t("adm_stats"));
     items += item("paylink", "\u2699\ufe0f", t("adm_paylink"));
     items += item("myhistory", "\ud83e\uddfe", t("adm_myhistory"));
@@ -561,6 +562,7 @@
     return '<label class="fld"><span>' + esc(label) + '</span>' +
       '<input class="field" id="' + id + '" type="' + (opts.type || "text") + '" ' +
       (opts.inputmode ? 'inputmode="' + opts.inputmode + '" ' : "") +
+      (opts.value !== undefined ? 'value="' + esc(opts.value) + '" ' : "") +
       'placeholder="' + esc(opts.ph || "") + '"/></label>';
   }
 
@@ -570,6 +572,9 @@
     let form = "";
     if (act === "team") {
       showTeam();
+      return;
+    } else if (act === "active") {
+      showActiveDeals();
       return;
     } else if (act === "addbalance") {
       form = admField("a_uid", t("user_id"), { type: "number", inputmode: "numeric", ph: "123456789" }) +
@@ -587,7 +592,8 @@
     } else if (act === "paylink") {
       form = admField("a_url", "URL", { ph: "https://t.me/..." });
     } else if (act === "addadmin") {
-      form = admField("a_uid", t("user_id"), { type: "number", inputmode: "numeric" });
+      form = admField("a_uid", t("user_id"), { type: "number", inputmode: "numeric" }) +
+        admField("a_name", t("adm_staff_name"), { ph: t("adm_staff_name_hint") });
     } else if (act === "myhistory") {
       panel.innerHTML = '<div class="loader"><div class="spin"></div></div>';
       api("/api/admin/history").then(function (d) {
@@ -602,6 +608,7 @@
   }
 
   function teamName(member) {
+    if (member.display_name) return member.display_name;
     if (member.username) return "@" + member.username;
     return member.first_name || "ID " + member.id;
   }
@@ -614,7 +621,7 @@
       panel.innerHTML = '<div class="team-head"><p>' + esc(t("adm_team_hint")) + '</p></div><div class="team-list">' +
         data.members.map(function (m) {
           return '<button class="team-row" data-member="' + m.id + '"><span class="team-avatar">' + (m.role === "owner" ? "✦" : "♜") +
-            '</span><span><b>' + esc(teamName(m)) + '</b><small>' + esc(m.role === "owner" ? t("adm_owner") : t("adm_admin")) + ' · ID ' + m.id + '</small></span><i>›</i></button>';
+            '</span><span><b>' + esc(teamName(m)) + '</b><small>' + esc(m.role === "owner" ? t("adm_owner") : t("adm_admin")) + (m.display_name && m.username ? ' · @' + esc(m.username) : '') + ' · ID ' + m.id + '</small></span><i>›</i></button>';
         }).join("") + '</div>';
       panel.querySelectorAll("[data-member]").forEach(function (button) {
         button.addEventListener("click", function () { showMember(parseInt(button.getAttribute("data-member"), 10)); });
@@ -635,6 +642,7 @@
       }).join("") + '</div>' : '<p class="muted">' + esc(t("adm_no_deals")) + '</p>';
       const cur = state.boot.currencies.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join("");
       panel.innerHTML = '<div class="member-title"><b>' + esc(title) + '</b><small>ID ' + d.id + '</small></div>' +
+        (member && member.removable ? '<div class="card member-name">' + admField("m_name", t("adm_staff_name"), { value: member.display_name || "", ph: t("adm_staff_name_hint") }) + '<button class="btn ghost block" id="memberNameSave">' + esc(t("adm_save_name")) + '</button></div>' : '') +
         '<div class="card">' + balanceRows(d.balances) + '</div>' +
         '<div class="card member-topup">' + admField("m_amt", t("amount"), { type: "number", inputmode: "decimal", ph: "1000" }) +
         '<label class="fld"><span>Currency</span><select class="field" id="m_cur">' + cur + '</select></label>' +
@@ -647,12 +655,40 @@
           toast(t("done")); showMember(d.id);
         } catch (e) { toast(errText(e)); }
       });
+      const saveName = document.getElementById("memberNameSave");
+      if (saveName) saveName.addEventListener("click", async function () {
+        try {
+          await api("/api/admin/team/" + d.id, { method: "PATCH", body: { display_name: document.getElementById("m_name").value.trim() } });
+          toast(t("done")); showMember(d.id);
+        } catch (e) { toast(errText(e)); }
+      });
       panel.querySelectorAll("[data-team-deal]").forEach(function (button) { button.addEventListener("click", function () { go("deal", button.getAttribute("data-team-deal")); }); });
       const remove = document.getElementById("memberRemove");
       if (remove) remove.addEventListener("click", async function () {
         if (!confirm(t("adm_remove") + " — " + title + "?")) return;
         try { await api("/api/admin/team/" + d.id, { method: "DELETE" }); toast(t("done")); showTeam(); } catch (e) { toast(errText(e)); }
       });
+    } catch (e) { panel.innerHTML = '<p class="neg">' + esc(errText(e)) + '</p>'; }
+  }
+
+  async function showActiveDeals() {
+    const panel = document.getElementById("admPanel");
+    panel.innerHTML = '<div class="loader"><div class="spin"></div></div>';
+    try {
+      const data = await api("/api/admin/active-deals");
+      const render = function (filter) {
+        const visible = data.deals.filter(function (deal) { return filter === "all" || deal.status === filter; });
+        const rows = visible.length ? '<div class="deal-history">' + visible.map(function (deal) {
+          return '<button class="deal-history-row" data-active-deal="' + esc(deal.tag) + '"><span><b>#' + esc(deal.tag) + '</b><small>@' + esc(deal.seller_username) + ' → @' + esc(deal.buyer_username) + '</small></span><span><b>' + esc(deal.amount_label) + ' ' + esc(deal.currency) + '</b><small>' + esc(statusLabel(deal.status)) + '</small></span></button>';
+        }).join("") + '</div>' : '<p class="muted">' + esc(t("adm_no_active")) + '</p>';
+        panel.querySelector("#activeRows").innerHTML = rows;
+        panel.querySelectorAll("[data-active-deal]").forEach(function (button) { button.addEventListener("click", function () { go("deal", button.getAttribute("data-active-deal")); }); });
+      };
+      panel.innerHTML = '<div class="active-summary"><button class="active-stat" data-active-filter="created"><b>' + data.summary.created + '</b><small>' + esc(t("adm_wait_payment")) + '</small></button>' +
+        '<button class="active-stat paid" data-active-filter="paid"><b>' + data.summary.paid + '</b><small>' + esc(t("adm_wait_item")) + '</small></button></div>' +
+        '<div class="active-filter"><button class="seg active" data-active-filter="all">' + esc(t("adm_all_active")) + '</button><button class="seg" data-active-filter="created">' + esc(t("adm_wait_payment")) + '</button><button class="seg" data-active-filter="paid">' + esc(t("adm_wait_item")) + '</button></div><div id="activeRows"></div>';
+      panel.querySelectorAll("[data-active-filter]").forEach(function (button) { button.addEventListener("click", function () { render(button.getAttribute("data-active-filter")); }); });
+      render("all");
     } catch (e) { panel.innerHTML = '<p class="neg">' + esc(errText(e)) + '</p>'; }
   }
 
@@ -686,7 +722,7 @@
         state.boot.payment_url = d.payment_url;
         out.innerHTML = '<p class="pos">' + esc(t("done")) + '</p>';
       } else if (act === "addadmin") {
-        await api("/api/admin/addadmin", { method: "POST", body: { user_id: parseInt(num("a_uid"), 10) } });
+        await api("/api/admin/addadmin", { method: "POST", body: { user_id: parseInt(num("a_uid"), 10), display_name: document.getElementById("a_name").value.trim() } });
         out.innerHTML = '<p class="pos">' + esc(t("done")) + '</p>';
       }
       haptic("medium");

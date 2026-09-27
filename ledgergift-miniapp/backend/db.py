@@ -82,6 +82,7 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS admins (
                 user_id INTEGER PRIMARY KEY,
                 added_by INTEGER,
+                display_name TEXT NOT NULL DEFAULT '',
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
             CREATE TABLE IF NOT EXISTS balance_history (
@@ -101,6 +102,10 @@ def init_db() -> None:
             "INSERT OR IGNORE INTO settings(key, value) VALUES('payment_url', ?)",
             (PAYMENT_URL,),
         )
+        # Existing Railway databases were created before employee aliases.
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(admins)")}
+        if "display_name" not in columns:
+            connection.execute("ALTER TABLE admins ADD COLUMN display_name TEXT NOT NULL DEFAULT ''")
         connection.commit()
 
 
@@ -404,13 +409,24 @@ def is_staff(user_id: int) -> bool:
     return is_admin(user_id) or user_id in WORKER_IDS
 
 
-def add_admin(user_id: int, added_by: int) -> None:
+def add_admin(user_id: int, added_by: int, display_name: str = "") -> None:
     with closing(db()) as connection:
         connection.execute(
-            "INSERT OR IGNORE INTO admins(user_id, added_by) VALUES(?, ?)",
-            (user_id, added_by),
+            """INSERT INTO admins(user_id, added_by, display_name) VALUES(?, ?, ?)
+               ON CONFLICT(user_id) DO UPDATE SET
+                 display_name = CASE WHEN excluded.display_name != '' THEN excluded.display_name ELSE admins.display_name END""",
+            (user_id, added_by, display_name.strip()),
         )
         connection.commit()
+
+
+def update_admin_name(user_id: int, display_name: str) -> bool:
+    with closing(db()) as connection:
+        cursor = connection.execute(
+            "UPDATE admins SET display_name = ? WHERE user_id = ?", (display_name.strip(), user_id)
+        )
+        connection.commit()
+    return cursor.rowcount > 0
 
 
 def admin_user_ids() -> list[int]:
@@ -426,7 +442,7 @@ def team_members() -> list[dict]:
     owners = set(ADMIN_IDS)
     with closing(db()) as connection:
         rows = connection.execute(
-            """SELECT a.user_id, a.added_by, a.created_at, u.username, u.first_name
+            """SELECT a.user_id, a.added_by, a.display_name, a.created_at, u.username, u.first_name
                FROM admins a LEFT JOIN users u ON u.id = a.user_id
                ORDER BY a.created_at ASC"""
         ).fetchall()
@@ -436,7 +452,7 @@ def team_members() -> list[dict]:
                 "SELECT username, first_name FROM users WHERE id = ?", (owner_id,)
             ).fetchone()
             data.setdefault(owner_id, {
-                "user_id": owner_id, "added_by": None, "created_at": None,
+                "user_id": owner_id, "added_by": None, "display_name": "", "created_at": None,
                 "username": profile["username"] if profile else "",
                 "first_name": profile["first_name"] if profile else "",
             })
@@ -444,7 +460,7 @@ def team_members() -> list[dict]:
     for member_id, row in data.items():
         members.append({
             "id": member_id, "username": row.get("username") or "",
-            "first_name": row.get("first_name") or "", "added_by": row.get("added_by"),
+            "first_name": row.get("first_name") or "", "display_name": row.get("display_name") or "", "added_by": row.get("added_by"),
             "created_at": row.get("created_at"), "role": "owner" if member_id in owners else "admin",
             "removable": member_id not in owners,
         })
@@ -474,3 +490,24 @@ def admin_user_deals(user_id: int, username: str = "", limit: int = 20) -> list[
             (user_id, username, username, limit),
         ).fetchall()
     return [Deal(**dict(row)) for row in rows]
+
+
+def active_deals(limit: int = 40) -> list[Deal]:
+    with closing(db()) as connection:
+        rows = connection.execute(
+            """SELECT tag, seller_id, seller_username, buyer_username, item_type, item_link,
+                      amount, currency, stars_count, status
+               FROM deals WHERE status IN ('created', 'paid')
+               ORDER BY CASE status WHEN 'paid' THEN 0 ELSE 1 END, created_at DESC LIMIT ?""",
+            (limit,),
+        ).fetchall()
+    return [Deal(**dict(row)) for row in rows]
+
+
+def active_deal_summary() -> dict:
+    with closing(db()) as connection:
+        rows = connection.execute(
+            "SELECT status, COUNT(*) AS count FROM deals WHERE status IN ('created', 'paid') GROUP BY status"
+        ).fetchall()
+    counts = {row["status"]: int(row["count"]) for row in rows}
+    return {"created": counts.get("created", 0), "paid": counts.get("paid", 0)}

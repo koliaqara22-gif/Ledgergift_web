@@ -376,6 +376,15 @@ async def admin_team(user: dict = Depends(current_owner)) -> dict:
     return {"members": db.team_members()}
 
 
+@app.get("/api/admin/active-deals")
+async def admin_active_deals(user: dict = Depends(current_admin)) -> dict:
+    lang = db.get_user_lang(int(user["id"]))
+    return {
+        "summary": db.active_deal_summary(),
+        "deals": [deal_public(deal, lang) for deal in db.active_deals()],
+    }
+
+
 @app.get("/api/admin/deal/{tag}")
 async def admin_deal(tag: str, user: dict = Depends(current_admin)) -> dict:
     deal = db.find_deal(tag.lstrip("#").upper())
@@ -427,11 +436,23 @@ async def admin_set_paylink(body: SetPayLinkIn, user: dict = Depends(current_adm
 
 class AddAdminIn(BaseModel):
     user_id: int
+    display_name: str = Field(default="", max_length=40)
 
 
 @app.post("/api/admin/addadmin")
 async def admin_add_admin(body: AddAdminIn, user: dict = Depends(current_owner)) -> dict:
-    db.add_admin(body.user_id, int(user["id"]))
+    db.add_admin(body.user_id, int(user["id"]), body.display_name)
+    return {"ok": True}
+
+
+class UpdateAdminNameIn(BaseModel):
+    display_name: str = Field(default="", max_length=40)
+
+
+@app.patch("/api/admin/team/{target_id}")
+async def admin_update_team_member(target_id: int, body: UpdateAdminNameIn, user: dict = Depends(current_owner)) -> dict:
+    if not db.update_admin_name(target_id, body.display_name):
+        raise HTTPException(status_code=400, detail="owner or unknown admin")
     return {"ok": True}
 
 

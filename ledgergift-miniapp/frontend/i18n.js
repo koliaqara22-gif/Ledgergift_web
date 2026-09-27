@@ -61,13 +61,17 @@ Object.assign(window.I18N.ru, {
   adm_team: "Команда", adm_team_hint: "Балансы, сделки и доступы сотрудников",
   adm_topup_member: "Пополнить баланс", adm_remove: "Удалить из команды",
   adm_owner: "Владелец", adm_admin: "Администратор", adm_deals: "Сделки сотрудника",
-  adm_no_deals: "Сделок пока нет", adm_protected: "Владельцы защищены от удаления"
+  adm_no_deals: "Сделок пока нет", adm_protected: "Владельцы защищены от удаления",
+  adm_staff_name: "Имя сотрудника", adm_staff_name_hint: "Например: Максим — менеджер", adm_save_name: "Сохранить имя",
+  adm_active: "Центр сделок", adm_wait_payment: "Ждут оплату", adm_wait_item: "Ждут товар", adm_all_active: "Все активные", adm_no_active: "Активных сделок нет"
 });
 Object.assign(window.I18N.en, {
   adm_team: "Team", adm_team_hint: "Staff balances, deals and access",
   adm_topup_member: "Add balance", adm_remove: "Remove from team",
   adm_owner: "Owner", adm_admin: "Administrator", adm_deals: "Staff deals",
-  adm_no_deals: "No deals yet", adm_protected: "Owners are protected from removal"
+  adm_no_deals: "No deals yet", adm_protected: "Owners are protected from removal",
+  adm_staff_name: "Staff name", adm_staff_name_hint: "For example: Max — manager", adm_save_name: "Save name",
+  adm_active: "Deal center", adm_wait_payment: "Waiting for payment", adm_wait_item: "Waiting for item", adm_all_active: "All active", adm_no_active: "No active deals"
 });
 // Every language inherits the complete English pack, then replaces the UI
 // vocabulary users see most often. No screen falls back to an empty key.
