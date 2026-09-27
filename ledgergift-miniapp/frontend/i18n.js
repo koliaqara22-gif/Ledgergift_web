@@ -57,6 +57,18 @@ window.I18N = {
     st_created: "Waiting for payment", st_paid: "Paid, waiting for item", st_completed: "Completed"
   }
 };
+Object.assign(window.I18N.ru, {
+  adm_team: "Команда", adm_team_hint: "Балансы, сделки и доступы сотрудников",
+  adm_topup_member: "Пополнить баланс", adm_remove: "Удалить из команды",
+  adm_owner: "Владелец", adm_admin: "Администратор", adm_deals: "Сделки сотрудника",
+  adm_no_deals: "Сделок пока нет", adm_protected: "Владельцы защищены от удаления"
+});
+Object.assign(window.I18N.en, {
+  adm_team: "Team", adm_team_hint: "Staff balances, deals and access",
+  adm_topup_member: "Add balance", adm_remove: "Remove from team",
+  adm_owner: "Owner", adm_admin: "Administrator", adm_deals: "Staff deals",
+  adm_no_deals: "No deals yet", adm_protected: "Owners are protected from removal"
+});
 // Every language inherits the complete English pack, then replaces the UI
 // vocabulary users see most often. No screen falls back to an empty key.
 window.I18N.zh = Object.assign({}, window.I18N.en, {nav_home:"主页",nav_balance:"余额",nav_top:"排行",nav_profile:"资料",welcome_title:"欢迎来到 LedgerGift",welcome_sub:"Telegram 礼物交易的安全空间。",a_create:"创建订单",a_security:"安全",a_manager:"客服",a_language:"语言",balance_title:"LedgerGift 余额",b_withdraw:"提现",b_topup:"充值",create_title:"创建订单",step_currency:"付款货币",next:"下一步",back:"返回",create_btn:"创建交易",deal_created:"交易已创建",share_link:"买家链接",copy:"复制",copied:"已复制",sharetg:"发送",deal_title:"交易",pay_from_balance:"用余额支付",support:"支持",profile_title:"资料",language_title:"选择语言",saved:"已保存",error:"错误"});

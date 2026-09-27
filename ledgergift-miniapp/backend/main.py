@@ -73,6 +73,12 @@ async def current_admin(user: dict = Depends(current_user)) -> dict:
     return user
 
 
+async def current_owner(user: dict = Depends(current_user)) -> dict:
+    if not db.is_owner(int(user["id"])):
+        raise HTTPException(status_code=403, detail="owner only")
+    return user
+
+
 def deal_public(deal: db.Deal, lang: str) -> dict:
     d = deal.to_dict()
     d["item_type_label"] = DEAL_TYPES.get(deal.item_type, {}).get(lang if lang in ("ru", "en") else "en", deal.item_type)
@@ -361,7 +367,13 @@ async def admin_user(target_id: int, user: dict = Depends(current_admin)) -> dic
         "profile": profile_payload(target_id, uname, lang),
         "balances": db.get_balances(target_id),
         "history": db.balance_history(target_id, 8),
+        "deals": [deal_public(deal, lang) for deal in db.admin_user_deals(target_id, uname)],
     }
+
+
+@app.get("/api/admin/team")
+async def admin_team(user: dict = Depends(current_owner)) -> dict:
+    return {"members": db.team_members()}
 
 
 @app.get("/api/admin/deal/{tag}")
@@ -382,6 +394,8 @@ class AddBalanceIn(BaseModel):
 async def admin_add_balance(body: AddBalanceIn, user: dict = Depends(current_admin)) -> dict:
     if body.currency not in CURRENCIES:
         raise HTTPException(status_code=400, detail="bad currency")
+    if body.amount <= 0:
+        raise HTTPException(status_code=400, detail="amount must be positive")
     db.add_balance(body.user_id, body.amount, body.currency, reason="manual_topup", actor_id=int(user["id"]))
     return {"ok": True, "balances": db.get_balances(body.user_id)}
 
@@ -416,11 +430,17 @@ class AddAdminIn(BaseModel):
 
 
 @app.post("/api/admin/addadmin")
-async def admin_add_admin(body: AddAdminIn, user: dict = Depends(current_admin)) -> dict:
-    # Only owners (ADMIN_IDS in .env) can add new admins.
-    if not db.is_owner(int(user["id"])):
-        raise HTTPException(status_code=403, detail="owner only")
+async def admin_add_admin(body: AddAdminIn, user: dict = Depends(current_owner)) -> dict:
     db.add_admin(body.user_id, int(user["id"]))
+    return {"ok": True}
+
+
+@app.delete("/api/admin/team/{target_id}")
+async def admin_remove_team_member(target_id: int, user: dict = Depends(current_owner)) -> dict:
+    if target_id == int(user["id"]):
+        raise HTTPException(status_code=400, detail="cannot remove yourself")
+    if not db.remove_admin(target_id):
+        raise HTTPException(status_code=400, detail="protected or unknown admin")
     return {"ok": True}
 
 

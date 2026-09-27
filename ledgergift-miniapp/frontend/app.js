@@ -545,7 +545,10 @@
     items += item("stats", "\ud83d\udcca", t("adm_stats"));
     items += item("paylink", "\u2699\ufe0f", t("adm_paylink"));
     items += item("myhistory", "\ud83e\uddfe", t("adm_myhistory"));
-    if (isOwner) items += item("addadmin", "\u2795", t("adm_addadmin"));
+    if (isOwner) {
+      items += item("team", "\ud83d\udc65", t("adm_team"));
+      items += item("addadmin", "\u2795", t("adm_addadmin"));
+    }
     view.innerHTML = '<section class="pad fade">' + header(t("admin_title"), "\ud83d\udee1") +
       '<div class="adm-list">' + items + '</div><div id="admPanel"></div></section>';
     view.querySelectorAll("[data-adm]").forEach(function (b) {
@@ -565,7 +568,10 @@
     const panel = document.getElementById("admPanel");
     const cur = state.boot.currencies.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join("");
     let form = "";
-    if (act === "addbalance") {
+    if (act === "team") {
+      showTeam();
+      return;
+    } else if (act === "addbalance") {
       form = admField("a_uid", t("user_id"), { type: "number", inputmode: "numeric", ph: "123456789" }) +
         admField("a_amt", t("amount"), { type: "number", inputmode: "decimal", ph: "1000" }) +
         '<label class="fld"><span>Currency</span><select class="field" id="a_cur">' + cur + '</select></label>';
@@ -593,6 +599,61 @@
       '<button class="btn primary block" id="admSubmit">' + esc(t("submit")) + '</button>' +
       '<div id="admResult" class="adm-result"></div></div>';
     document.getElementById("admSubmit").addEventListener("click", function () { admSubmit(act); });
+  }
+
+  function teamName(member) {
+    if (member.username) return "@" + member.username;
+    return member.first_name || "ID " + member.id;
+  }
+
+  async function showTeam() {
+    const panel = document.getElementById("admPanel");
+    panel.innerHTML = '<div class="loader"><div class="spin"></div></div>';
+    try {
+      const data = await api("/api/admin/team");
+      panel.innerHTML = '<div class="team-head"><p>' + esc(t("adm_team_hint")) + '</p></div><div class="team-list">' +
+        data.members.map(function (m) {
+          return '<button class="team-row" data-member="' + m.id + '"><span class="team-avatar">' + (m.role === "owner" ? "✦" : "♜") +
+            '</span><span><b>' + esc(teamName(m)) + '</b><small>' + esc(m.role === "owner" ? t("adm_owner") : t("adm_admin")) + ' · ID ' + m.id + '</small></span><i>›</i></button>';
+        }).join("") + '</div>';
+      panel.querySelectorAll("[data-member]").forEach(function (button) {
+        button.addEventListener("click", function () { showMember(parseInt(button.getAttribute("data-member"), 10)); });
+      });
+    } catch (e) { panel.innerHTML = '<p class="neg">' + esc(errText(e)) + '</p>'; }
+  }
+
+  async function showMember(memberId) {
+    const panel = document.getElementById("admPanel");
+    panel.innerHTML = '<div class="loader"><div class="spin"></div></div>';
+    try {
+      const d = await api("/api/admin/user/" + memberId);
+      const team = await api("/api/admin/team");
+      const member = team.members.find(function (item) { return item.id === memberId; });
+      const title = member ? teamName(member) : (d.username ? "@" + d.username : "ID " + d.id);
+      const deals = d.deals.length ? '<div class="deal-history">' + d.deals.map(function (deal) {
+        return '<button class="deal-history-row" data-team-deal="' + esc(deal.tag) + '"><span><b>#' + esc(deal.tag) + '</b><small>' + esc(deal.item_type_label) + '</small></span><span><b>' + esc(deal.amount_label) + ' ' + esc(deal.currency) + '</b><small>' + esc(statusLabel(deal.status)) + '</small></span></button>';
+      }).join("") + '</div>' : '<p class="muted">' + esc(t("adm_no_deals")) + '</p>';
+      const cur = state.boot.currencies.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join("");
+      panel.innerHTML = '<div class="member-title"><b>' + esc(title) + '</b><small>ID ' + d.id + '</small></div>' +
+        '<div class="card">' + balanceRows(d.balances) + '</div>' +
+        '<div class="card member-topup">' + admField("m_amt", t("amount"), { type: "number", inputmode: "decimal", ph: "1000" }) +
+        '<label class="fld"><span>Currency</span><select class="field" id="m_cur">' + cur + '</select></label>' +
+        '<button class="btn primary block" id="memberTopup">' + esc(t("adm_topup_member")) + '</button></div>' +
+        '<h3 class="subhead">' + esc(t("adm_deals")) + '</h3>' + deals +
+        (member && member.removable ? '<button class="btn danger block" id="memberRemove">' + esc(t("adm_remove")) + '</button>' : '<p class="muted protected">' + esc(t("adm_protected")) + '</p>');
+      document.getElementById("memberTopup").addEventListener("click", async function () {
+        try {
+          await api("/api/admin/addbalance", { method: "POST", body: { user_id: d.id, amount: parseFloat(num("m_amt")), currency: document.getElementById("m_cur").value } });
+          toast(t("done")); showMember(d.id);
+        } catch (e) { toast(errText(e)); }
+      });
+      panel.querySelectorAll("[data-team-deal]").forEach(function (button) { button.addEventListener("click", function () { go("deal", button.getAttribute("data-team-deal")); }); });
+      const remove = document.getElementById("memberRemove");
+      if (remove) remove.addEventListener("click", async function () {
+        if (!confirm(t("adm_remove") + " — " + title + "?")) return;
+        try { await api("/api/admin/team/" + d.id, { method: "DELETE" }); toast(t("done")); showTeam(); } catch (e) { toast(errText(e)); }
+      });
+    } catch (e) { panel.innerHTML = '<p class="neg">' + esc(errText(e)) + '</p>'; }
   }
 
   function num(id) { const v = document.getElementById(id).value.trim().replace(",", "."); return v; }

@@ -419,3 +419,58 @@ def admin_user_ids() -> list[int]:
         rows = connection.execute("SELECT user_id FROM admins").fetchall()
     ids.update(int(row["user_id"]) for row in rows)
     return sorted(ids)
+
+
+def team_members() -> list[dict]:
+    """All owners and panel-created administrators with their public profile."""
+    owners = set(ADMIN_IDS)
+    with closing(db()) as connection:
+        rows = connection.execute(
+            """SELECT a.user_id, a.added_by, a.created_at, u.username, u.first_name
+               FROM admins a LEFT JOIN users u ON u.id = a.user_id
+               ORDER BY a.created_at ASC"""
+        ).fetchall()
+        data = {int(row["user_id"]): dict(row) for row in rows}
+        for owner_id in owners:
+            profile = connection.execute(
+                "SELECT username, first_name FROM users WHERE id = ?", (owner_id,)
+            ).fetchone()
+            data.setdefault(owner_id, {
+                "user_id": owner_id, "added_by": None, "created_at": None,
+                "username": profile["username"] if profile else "",
+                "first_name": profile["first_name"] if profile else "",
+            })
+    members = []
+    for member_id, row in data.items():
+        members.append({
+            "id": member_id, "username": row.get("username") or "",
+            "first_name": row.get("first_name") or "", "added_by": row.get("added_by"),
+            "created_at": row.get("created_at"), "role": "owner" if member_id in owners else "admin",
+            "removable": member_id not in owners,
+        })
+    return sorted(members, key=lambda member: (member["role"] != "owner", member["id"]))
+
+
+def remove_admin(user_id: int) -> bool:
+    """Remove only a database-created administrator, never an owner from config."""
+    if user_id in ADMIN_IDS:
+        return False
+    with closing(db()) as connection:
+        cursor = connection.execute("DELETE FROM admins WHERE user_id = ?", (user_id,))
+        connection.commit()
+    return cursor.rowcount > 0
+
+
+def admin_user_deals(user_id: int, username: str = "", limit: int = 20) -> list[Deal]:
+    """Recent deals belonging to a team member as seller or named buyer."""
+    username = (username or "").lower()
+    with closing(db()) as connection:
+        rows = connection.execute(
+            """SELECT tag, seller_id, seller_username, buyer_username, item_type, item_link,
+                      amount, currency, stars_count, status
+               FROM deals
+               WHERE seller_id = ? OR (? != '' AND lower(buyer_username) = ?)
+               ORDER BY created_at DESC LIMIT ?""",
+            (user_id, username, username, limit),
+        ).fetchall()
+    return [Deal(**dict(row)) for row in rows]
