@@ -233,6 +233,7 @@ button{font-family:inherit}.grid-card .gc-lbl,.type-card,.cur-card,.adm-item,.la
 /* Calm glass surfaces, useful loading placeholders and success feedback. */
 .grid-card,.card,.balance-card,.deal-history-row,.team-row,.tabbar{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 body:not(.light-theme) .grid-card,body:not(.light-theme) .card,body:not(.light-theme) .deal-history-row,body:not(.light-theme) .team-row{background:linear-gradient(135deg,rgba(26,36,59,.78),rgba(12,17,30,.82))}
+body:not(.light-theme) .grid-card.accent .gc-lbl{color:#f8fcff;text-shadow:0 1px 10px rgba(4,19,52,.48)}
 body:not(.light-theme) .tabbar{background:rgba(8,12,23,.78)}
 .currency-icon[src$="ton.svg"]{filter:drop-shadow(0 0 7px rgba(80,193,255,.65))}.currency-icon[src$="stars.svg"]{filter:drop-shadow(0 0 7px rgba(255,196,56,.68))}.type-card .app-icon,.grid-card .gc-ic .app-icon{filter:drop-shadow(0 0 7px rgba(113,219,255,.28))}
 .loader{display:grid;gap:12px;align-content:center;min-height:220px;padding:24px}.loader:before,.loader:after,.loader .spin{content:"";display:block;height:56px;border-radius:17px;background:linear-gradient(90deg,rgba(109,130,170,.08) 25%,rgba(160,186,235,.18) 50%,rgba(109,130,170,.08) 75%);background-size:220% 100%;animation:lg-shimmer 1.25s linear infinite}.loader .spin{width:auto;height:92px;border:0;animation:lg-shimmer 1.25s linear infinite}@keyframes lg-shimmer{to{background-position:-220% 0}}
