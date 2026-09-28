@@ -386,6 +386,23 @@ async def confirm_receipt(tag: str, body: ReceiptIn, user: dict = Depends(curren
     return {"ok": True, "deal": deal_public(deal, db.get_user_lang(uid))}
 
 
+@app.post("/api/deal/{tag}/notify-seller")
+async def buyer_notify_seller_about_payment(tag: str, user: dict = Depends(current_user)) -> dict:
+    """Lets the assigned buyer re-send the bot's complete paid-deal notice."""
+    tag = tag.lstrip("#").upper()
+    deal = db.find_deal(tag)
+    if not deal:
+        raise HTTPException(status_code=404, detail="deal not found")
+    uid = int(user["id"])
+    username = (user.get("username") or "").lower()
+    if (username != deal.buyer_username.lower() and not db.is_staff(uid)):
+        raise HTTPException(status_code=403, detail="deal assigned to another buyer")
+    if deal.status not in ("paid", "transferred"):
+        raise HTTPException(status_code=400, detail="not_paid")
+    await notify_paid_deal(deal)
+    return {"ok": True}
+
+
 @app.post("/api/admin/deal/{tag}/transferred")
 async def admin_mark_deal_transferred(tag: str, user: dict = Depends(current_admin)) -> dict:
     ok, reason, deal = db.mark_deal_transferred(tag.lstrip("#").upper())

@@ -84,12 +84,12 @@ Object.assign(window.I18N.en, {
 Object.assign(window.I18N.ru, {
   st_paid: "Передача NFT через менеджера", st_transferred: "NFT передан, ждёт подтверждения", timeline_created: "Создана", timeline_paid: "Оплачена", timeline_transferred: "Передача NFT", timeline_completed: "Завершена",
   withdraw_created: "Вывод создан", withdraw_checking: "Вывод проверяется", withdraw_sending: "Вывод отправляется",
-  home_active: "Активные сделки", transfer_to_manager: "Передать NFT через менеджера", adm_wait_confirm: "Ждут подтверждение", adm_mark_transferred: "NFT передан покупателю", adm_transferred_ok: "Передача NFT отмечена", adm_send_paid_notice: "Отправить продавцу сообщение об оплате", adm_paid_notice_sent: "Полное сообщение об оплате отправлено продавцу"
+  home_active: "Активные сделки", transfer_to_manager: "Передать NFT через менеджера", notify_seller_paid: "Отправить продавцу сообщение об оплате", seller_paid_sent: "Сообщение об оплате отправлено продавцу", adm_wait_confirm: "Ждут подтверждение", adm_mark_transferred: "NFT передан покупателю", adm_transferred_ok: "Передача NFT отмечена", adm_send_paid_notice: "Отправить продавцу сообщение об оплате", adm_paid_notice_sent: "Полное сообщение об оплате отправлено продавцу"
 });
 Object.assign(window.I18N.en, {
   st_transferred: "NFT transferred, waiting for confirmation", timeline_created: "Created", timeline_paid: "Paid", timeline_transferred: "NFT transferred", timeline_completed: "Completed",
   withdraw_created: "Withdrawal created", withdraw_checking: "Withdrawal is being checked", withdraw_sending: "Withdrawal is being sent",
-  home_active: "Active deals", transfer_to_manager: "Transfer NFT through manager", adm_wait_confirm: "Waiting for confirmation", adm_mark_transferred: "NFT transferred to buyer", adm_transferred_ok: "NFT transfer marked", adm_send_paid_notice: "Send paid notice to seller", adm_paid_notice_sent: "Full paid notice sent to seller"
+  home_active: "Active deals", transfer_to_manager: "Transfer NFT through manager", notify_seller_paid: "Send paid notice to seller", seller_paid_sent: "Paid notice sent to seller", adm_wait_confirm: "Waiting for confirmation", adm_mark_transferred: "NFT transferred to buyer", adm_transferred_ok: "NFT transfer marked", adm_send_paid_notice: "Send paid notice to seller", adm_paid_notice_sent: "Full paid notice sent to seller"
 });
 
 // Every language inherits the complete English pack, then replaces the UI

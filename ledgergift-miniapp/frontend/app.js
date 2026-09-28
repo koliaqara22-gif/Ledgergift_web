@@ -662,6 +662,9 @@
       actions += '<button class="btn primary block" id="yesBtn">' + esc(t("yes_received")) + '</button>' +
                  '<button class="btn block" id="noBtn">' + esc(t("no")) + '</button>';
     }
+    if (role.is_buyer && (deal.status === "paid" || deal.status === "transferred")) {
+      actions += '<button class="btn ghost block" id="notifySellerBtn">' + icon("send") + esc(t("notify_seller_paid")) + '</button>';
+    }
     if (!role.can_pay && !role.can_confirm && !role.is_seller && !role.is_staff) {
       actions += '<p class="muted">' + esc(t("not_your_deal")) + '</p>';
     }
@@ -693,6 +696,11 @@
     });
     const no = document.getElementById("noBtn");
     if (no) no.addEventListener("click", function () { openManager(); });
+    const notifySeller = document.getElementById("notifySellerBtn");
+    if (notifySeller) notifySeller.addEventListener("click", async function () {
+      try { await api("/api/deal/" + deal.tag + "/notify-seller", { method: "POST" }); toast(t("seller_paid_sent")); }
+      catch (e) { toast(errText(e)); }
+    });
     document.getElementById("supBtn").addEventListener("click", openManager);
   }
 
