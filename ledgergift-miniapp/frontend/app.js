@@ -329,21 +329,32 @@
     view.innerHTML = '<div class="loader"><div class="spin"></div></div>';
     try {
       const p = await api("/api/profile");
+      const balanceData = await api("/api/balances");
       const deals = await api("/api/deals/history");
       const uname = p.username ? "@" + p.username : "\u2014";
+      const displayName = state.boot.me.first_name || uname;
+      const total = state.boot.currencies.reduce(function (sum, currency) { return sum + Number(balanceData.balances[currency] || 0); }, 0);
+      const cardTheme = localStorage.getItem("lg-card-theme") || "gold";
       const dealRows = deals.deals.length ? deals.deals.map(function (d) { return '<button class="deal-history-row" data-deal="' + esc(d.tag) + '"><span><b>#' + esc(d.tag) + '</b><small>' + esc(d.item_type_label) + '</small></span><span><b>' + esc(d.amount_label) + ' ' + esc(d.currency) + '</b><small>' + esc(statusLabel(d.status)) + '</small></span></button>'; }).join("") : '<p class="muted">' + esc(t("history_empty")) + '</p>';
       view.innerHTML =
         '<section class="pad fade">' + header(t("profile_title"), "\ud83d\udc64") +
-          '<div class="flip-wrap" id="flipCard"><div class="flip-card"><div class="flip-face flip-front"><span class="card-brand">LedgerGift</span><span class="card-orbit"></span><div class="pf-avatar">' + esc((p.username || "?").charAt(0).toUpperCase()) + '</div><div class="pf-name">' + esc(uname) + '</div><div class="pf-level">' + esc(p.level.label) + '</div><small>' + esc(t("volume")) + '</small><strong>' + esc(p.volume_label) + '</strong><em>' + esc(t("flip_card")) + ' ↻</em></div><div class="flip-face flip-back"><span class="card-brand">LedgerGift · Profile</span><div class="card-line"></div><div class="card-id">ID ' + esc(String(p.id)) + '</div><div class="pf-stats"><div><b>' + esc(String(p.orders)) + '</b><span>' + esc(t("success_orders")) + '</span></div><div><b>' + esc(p.rating.toFixed(1)) + '</b><span>' + esc(t("rating")) + '</span></div><div><b>' + esc(p.volume_label) + '</b><span>' + esc(t("volume")) + '</span></div></div><em>' + esc(t("flip_card")) + ' ↻</em></div></div></div>' +
+          '<div class="flip-wrap theme-' + esc(cardTheme) + '" id="flipCard"><div class="flip-card"><div class="flip-face flip-front"><span class="card-brand">LedgerGift</span><button class="card-palette" id="cardPalette" aria-label="card color">◉</button><div class="pf-avatar">' + esc((p.username || "?").charAt(0).toUpperCase()) + '</div><div class="pf-name">' + esc(displayName) + '</div><div class="pf-user">' + esc(uname) + '</div><small>' + esc(t("total_balance")) + '</small><strong>' + esc(fmt(total)) + '</strong><em>' + esc(t("flip_card")) + ' ↻</em></div><div class="flip-face flip-back"><span class="card-brand">LedgerGift</span><div class="card-line"></div><div class="card-sign">' + esc(displayName) + '</div><div class="card-meta"><small>TELEGRAM ID</small><b>' + esc(String(p.id)) + '</b></div><div class="pf-stats"><div><b>' + esc(String(p.orders)) + '</b><span>' + esc(t("all_deals")) + '</span></div><div><b>' + esc(String(p.orders)) + '</b><span>' + esc(t("success_orders")) + '</span></div><div><b>0</b><span>' + esc(t("st_completed")) + '</span></div><div><b>0</b><span>' + esc(t("cancelled")) + '</span></div></div><em>' + esc(t("flip_card")) + ' ↻</em></div></div></div>' +
           '<div class="profile-actions"><button class="profile-action active" id="profileWallets">◈ ' + esc(t("wallets")) + '</button><button class="profile-action" id="profileLang">◎ ' + esc(t("a_language")) + '</button></div>' +
           '<h3 class="subhead">' + esc(t("deal_title")) + '</h3><div class="deal-history">' + dealRows + '</div>' +
         '</section>';
       document.getElementById("flipCard").addEventListener("click", function () { this.classList.toggle("flipped"); haptic(); });
+      document.getElementById("cardPalette").addEventListener("click", function (e) { e.stopPropagation(); cardThemeSheet(); });
       document.getElementById("profileWallets").addEventListener("click", function () { go("wallets"); });
       document.getElementById("profileLang").addEventListener("click", function () { go("language"); });
       view.querySelectorAll("[data-deal]").forEach(function (b) { b.addEventListener("click", function () { go("deal", b.getAttribute("data-deal")); }); });
     } catch (e) { toast(errText(e)); }
   };
+
+  function cardThemeSheet() {
+    const themes = [["gold", t("card_gold")], ["ocean", t("card_ocean")], ["emerald", t("card_emerald")], ["violet", t("card_violet")], ["rose", t("card_rose")]];
+    showSheet('<button class="sheet-close" data-close>×</button><h2>' + esc(t("card_color")) + '</h2><div class="theme-grid">' + themes.map(function (item) { return '<button class="theme-choice theme-' + item[0] + '" data-card-theme="' + item[0] + '"><span></span><b>' + esc(item[1]) + '</b></button>'; }).join("") + '</div>');
+    document.querySelectorAll("[data-card-theme]").forEach(function (button) { button.addEventListener("click", function () { localStorage.setItem("lg-card-theme", button.getAttribute("data-card-theme")); document.getElementById("sheet").remove(); routes.profile(); }); });
+  }
 
   // =======================================================================
   // TOP
