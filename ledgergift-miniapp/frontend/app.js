@@ -271,6 +271,20 @@
     }).join("") + '</div>';
   }
 
+  function transactionList(history) {
+    if (!history || !history.length) return '<p class="muted">' + esc(t("history_empty")) + '</p>';
+    const labels = {
+      manual_topup: t("tx_topup"), deal_payment: t("tx_payment"), deal_release: t("tx_release"), withdrawal_request: t("tx_withdraw_request")
+    };
+    return '<div class="transaction-list">' + history.map(function (h) {
+      const pending = h.reason === "withdrawal_request";
+      const positive = h.amount >= 0;
+      const title = labels[h.reason] || h.reason;
+      const detail = h.deal_tag ? t("deal_title") + ' #' + h.deal_tag : (h.created_at || "");
+      return '<div class="transaction-row"><span class="transaction-icon ' + (pending ? 'pending' : (positive ? 'income' : 'expense')) + '">' + icon(pending ? "chart" : (positive ? "wallet" : "chart")) + '</span><span class="transaction-copy"><b>' + esc(title) + '</b><small>' + esc(detail) + '</small></span><b class="' + (pending ? 'pending-text' : (positive ? 'pos' : 'neg')) + '">' + (pending ? '' : (positive ? '+' : '−')) + esc(fmt(h.amount)) + ' ' + esc(h.currency) + '</b></div>';
+    }).join("") + '</div>';
+  }
+
   routes.balance = async function () {
     view.innerHTML = '<div class="loader"><div class="spin"></div></div>';
     try {
@@ -278,21 +292,41 @@
       view.innerHTML =
         '<section class="pad fade">' + header(t("balance_title"), icon("wallet")) +
           '<div class="balance-card"><div class="balance-card-head"><b>' + esc(t("balance_title")) + '</b><span>' + esc(t("wallets")) + '</span></div>' + balanceRows(d.balances) + '</div>' +
-          '<div class="btn-row">' +
-            '<button class="btn" data-act="withdraw">' + esc(t("b_withdraw")) + '</button>' +
-            '<button class="btn primary" data-act="topup">' + esc(t("b_topup")) + '</button>' +
+          '<div class="wallet-actions">' +
+            '<button class="btn ghost" data-act="withdraw">' + icon("chart") + esc(t("b_withdraw")) + '</button>' +
+            '<button class="btn primary" data-act="topup">' + icon("wallet") + esc(t("b_topup")) + '</button>' +
           '</div>' +
-          '<h3 class="subhead">' + esc(t("b_history")) + '</h3>' + historyList(d.history) +
+          '<button class="transactions-btn" data-act="transactions">' + icon("chart") + '<span>' + esc(t("transactions")) + '</span><i>›</i></button>' +
         '</section>';
-      view.querySelector('[data-act="withdraw"]').addEventListener("click", async function () {
-        try { await api("/api/balance/withdraw", { method: "POST" }); toast(t("withdraw_done")); } catch (e) { toast(errText(e)); }
-      });
+      view.querySelector('[data-act="withdraw"]').addEventListener("click", function () { withdrawSheet(d.balances); });
       view.querySelector('[data-act="topup"]').addEventListener("click", function () {
         go("wallets");
       });
+      view.querySelector('[data-act="transactions"]').addEventListener("click", function () { transactionsSheet(d.history); });
       view.querySelectorAll("[data-wallet]").forEach(function (b) { b.addEventListener("click", function () { walletSheet(b.getAttribute("data-wallet"), d.balances[b.getAttribute("data-wallet")] || 0); }); });
     } catch (e) { toast(errText(e)); }
   };
+
+  function transactionsSheet(history) {
+    showSheet('<button class="sheet-close" data-close>×</button><h2>' + esc(t("transactions")) + '</h2><p class="sheet-sub">' + esc(t("transactions_hint")) + '</p>' + transactionList(history));
+  }
+
+  async function withdrawSheet(balances) {
+    let requisites = {};
+    try { const data = await api("/api/requisites"); requisites = data.items || {}; } catch (e) {}
+    const options = state.boot.currencies.map(function (currency) { return '<option value="' + currency + '">' + esc(currencyLabel(currency)) + ' · ' + esc(fmt(balances[currency] || 0)) + '</option>'; }).join("");
+    showSheet('<button class="sheet-close" data-close>×</button><h2>' + esc(t("b_withdraw")) + '</h2><div class="wallet-amount"><small>' + esc(t("withdraw_available")) + '</small><b id="withdrawAvailable"></b></div><label class="fld"><span>' + esc(t("step_currency")) + '</span><select class="field" id="withdrawCurrency">' + options + '</select></label><label class="fld"><span>' + esc(t("amount")) + '</span><input class="field" id="withdrawAmount" type="number" inputmode="decimal" placeholder="0.00"></label><p class="sheet-sub" id="withdrawDestination"></p><button class="btn primary block" id="withdrawSubmit">' + esc(t("withdraw_request")) + '</button>');
+    const currency = document.getElementById("withdrawCurrency");
+    const update = function () { const c = currency.value; document.getElementById("withdrawAvailable").textContent = fmt(balances[c] || 0) + ' ' + c; const item = requisites[c]; document.getElementById("withdrawDestination").textContent = item ? t("withdraw_to") + ': ' + (item.label || item.kind) : t("withdraw_no_requisites"); };
+    currency.addEventListener("change", update); update();
+    document.getElementById("withdrawSubmit").addEventListener("click", async function () {
+      const amount = parseFloat(document.getElementById("withdrawAmount").value.replace(",", "."));
+      const c = currency.value;
+      if (!(amount > 0) || amount > Number(balances[c] || 0)) return toast(t("withdraw_invalid"));
+      if (!requisites[c]) return toast(t("withdraw_no_requisites"));
+      try { await api("/api/balance/withdraw", { method: "POST", body: { currency: c, amount: amount } }); toast(t("withdraw_done")); document.getElementById("sheet").remove(); } catch (e) { toast(errText(e)); }
+    });
+  }
 
   // =======================================================================
   // WALLETS / REQUISITES

@@ -235,9 +235,20 @@ async def notify_paid_deal(deal: db.Deal) -> None:
         pass
 
 
+class WithdrawIn(BaseModel):
+    currency: str
+    amount: float = Field(gt=0)
+
+
 @app.post("/api/balance/withdraw")
-async def request_withdraw(user: dict = Depends(current_user)) -> dict:
-    # Withdrawals are handled manually by the manager, same as the original bot.
+async def request_withdraw(body: WithdrawIn, user: dict = Depends(current_user)) -> dict:
+    # This records a request only; funds stay untouched until a manager handles it.
+    uid = int(user["id"])
+    if body.currency not in CURRENCIES or body.amount > db.get_balance(uid, body.currency):
+        raise HTTPException(status_code=400, detail="invalid withdrawal")
+    if not db.has_requisites(uid, body.currency):
+        raise HTTPException(status_code=400, detail="requisites_required")
+    db.record_balance_history(uid, body.amount, body.currency, "request", "withdrawal_request")
     return {"ok": True, "support_username": SUPPORT_USERNAME}
 
 
