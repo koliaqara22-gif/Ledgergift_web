@@ -313,6 +313,7 @@ def balance_history(user_id: int, limit: int = 10) -> list[dict]:
             SELECT amount, currency, operation, reason, deal_tag, created_at
             FROM balance_history
             WHERE user_id = ?
+              AND (reason != 'withdrawal_request' OR created_at >= datetime('now', '-1 hour'))
             ORDER BY id DESC
             LIMIT ?
             """,

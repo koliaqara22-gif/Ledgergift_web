@@ -16,6 +16,9 @@
     wallet: '<svg viewBox="0 0 24 24"><path d="M4 6h14a2 2 0 0 1 2 2v10H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zm0 4h16M16 14h2"/></svg>',
     shield: '<svg viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5-3.4 8.2-8 10-4.6-1.8-8-5-8-10V6z"/></svg>',
     chart: '<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+    trophy: '<svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zm0 2H4v2a3 3 0 0 0 3 3m10-5h3v2a3 3 0 0 1-3 3"/></svg>',
+    clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg>',
+    withdraw: '<svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>',
     user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
     chat: '<svg viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8 8 0 0 1-3.4-.8L4 20l1.5-3.5A7.2 7.2 0 0 1 4 12a7.5 7.5 0 0 1 8-7.5 7.5 7.5 0 0 1 8 7z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg>',
     globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
@@ -166,7 +169,7 @@
     grid += card("create", icon("gift"), t("a_create"), "accent span2");
     grid += card("balance", icon("wallet"), t("a_balance"));
     grid += card("security", icon("shield"), t("a_security"));
-    grid += card("top", icon("chart"), t("a_top"));
+    grid += card("top", icon("trophy"), t("a_top"));
     grid += card("profile", icon("user"), t("a_profile"));
     grid += '<button class="grid-card" data-manager><span class="gc-ic">' + icon("chat") + '</span><span class="gc-lbl">' + esc(t("a_manager")) + '</span></button>';
     grid += card("language", icon("globe"), t("a_language"));
@@ -281,7 +284,7 @@
       const positive = h.amount >= 0;
       const title = labels[h.reason] || h.reason;
       const detail = h.deal_tag ? t("deal_title") + ' #' + h.deal_tag : (h.created_at || "");
-      return '<div class="transaction-row"><span class="transaction-icon ' + (pending ? 'pending' : (positive ? 'income' : 'expense')) + '">' + icon(pending ? "chart" : (positive ? "wallet" : "chart")) + '</span><span class="transaction-copy"><b>' + esc(title) + '</b><small>' + esc(detail) + '</small></span><b class="' + (pending ? 'pending-text' : (positive ? 'pos' : 'neg')) + '">' + (pending ? '' : (positive ? '+' : '−')) + esc(fmt(h.amount)) + ' ' + esc(h.currency) + '</b></div>';
+      return '<div class="transaction-row"><span class="transaction-icon ' + (pending ? 'pending' : (positive ? 'income' : 'expense')) + '">' + icon(pending ? "withdraw" : (positive ? "wallet" : "chart")) + '</span><span class="transaction-copy"><b>' + esc(title) + '</b><small>' + esc(detail) + '</small></span><b class="' + (pending ? 'pending-text' : (positive ? 'pos' : 'neg')) + '">' + (pending ? '' : (positive ? '+' : '−')) + esc(fmt(h.amount)) + ' ' + esc(h.currency) + '</b></div>';
     }).join("") + '</div>';
   }
 
@@ -293,10 +296,10 @@
         '<section class="pad fade">' + header(t("balance_title"), icon("wallet")) +
           '<div class="balance-card"><div class="balance-card-head"><b>' + esc(t("balance_title")) + '</b><span>' + esc(t("wallets")) + '</span></div>' + balanceRows(d.balances) + '</div>' +
           '<div class="wallet-actions">' +
-            '<button class="btn ghost" data-act="withdraw">' + icon("chart") + esc(t("b_withdraw")) + '</button>' +
+            '<button class="btn ghost" data-act="withdraw">' + icon("withdraw") + esc(t("b_withdraw")) + '</button>' +
             '<button class="btn primary" data-act="topup">' + icon("wallet") + esc(t("b_topup")) + '</button>' +
           '</div>' +
-          '<button class="transactions-btn" data-act="transactions">' + icon("chart") + '<span>' + esc(t("transactions")) + '</span><i>›</i></button>' +
+          '<button class="transactions-btn" data-act="transactions">' + icon("clock") + '<span>' + esc(t("transactions")) + '</span><i>›</i></button>' +
         '</section>';
       view.querySelector('[data-act="withdraw"]').addEventListener("click", function () { withdrawSheet(d.balances); });
       view.querySelector('[data-act="topup"]').addEventListener("click", function () {
