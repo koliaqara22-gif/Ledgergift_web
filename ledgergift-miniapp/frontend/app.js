@@ -668,7 +668,8 @@
     if (!role.can_pay && !role.can_confirm && !role.is_seller && !role.is_staff) {
       actions += '<p class="muted">' + esc(t("not_your_deal")) + '</p>';
     }
-    actions += '<button class="btn ghost block" id="supBtn">' + esc(role.can_confirm ? t("transfer_to_manager") : t("support")) + '</button>';
+    const managerStep = (role.can_confirm || role.is_seller) && (deal.status === "paid" || deal.status === "transferred");
+    actions += '<button class="btn ghost block" id="supBtn">' + esc(managerStep ? t("transfer_to_manager") : t("support")) + '</button>';
 
     view.innerHTML =
       '<section class="pad fade">' + header(t("deal_title") + " #" + deal.tag, icon("shield")) +
