@@ -8,8 +8,13 @@
 html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   overscroll-behavior:none}
-#app{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;
+#app{position:relative;z-index:1;max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;
   padding-bottom:calc(78px + env(safe-area-inset-bottom))}
+.nft-atmosphere{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.nft-float{position:absolute;display:block;object-fit:contain;opacity:.13;filter:drop-shadow(0 5px 10px rgba(0,0,0,.32));will-change:transform;animation:nft-drift 15s ease-in-out infinite alternate}
+.nft-pepe{width:92px;left:-29px;top:20%;animation-duration:18s;animation-delay:-7s}.nft-watch{width:76px;right:-24px;top:9%;animation-duration:16s;animation-delay:-3s}.nft-snoop{width:75px;right:-18px;top:44%;animation-duration:20s;animation-delay:-13s}.nft-bag{width:64px;left:-17px;bottom:23%;animation-duration:14s;animation-delay:-9s}.nft-cigar{width:82px;right:-29px;bottom:8%;animation-duration:19s;animation-delay:-5s}
+@keyframes nft-drift{0%{transform:translate3d(-3px,-8px,0) rotate(-4deg)}55%{transform:translate3d(10px,13px,0) rotate(4deg)}100%{transform:translate3d(-7px,25px,0) rotate(-2deg)}}
+@media (prefers-reduced-motion:reduce){.nft-float{animation:none}}
 
 .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;
   padding:14px 16px calc(12px);background:linear-gradient(180deg,#000 0%,rgba(10,10,12,.85) 100%);
