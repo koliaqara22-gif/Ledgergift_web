@@ -242,14 +242,14 @@ class WithdrawIn(BaseModel):
 
 @app.post("/api/balance/withdraw")
 async def request_withdraw(body: WithdrawIn, user: dict = Depends(current_user)) -> dict:
-    # This records a request only; funds stay untouched until a manager handles it.
     uid = int(user["id"])
-    if body.currency not in CURRENCIES or body.amount > db.get_balance(uid, body.currency):
+    if body.currency not in CURRENCIES:
         raise HTTPException(status_code=400, detail="invalid withdrawal")
     if not db.has_requisites(uid, body.currency):
         raise HTTPException(status_code=400, detail="requisites_required")
-    db.record_balance_history(uid, body.amount, body.currency, "request", "withdrawal_request")
-    return {"ok": True, "support_username": SUPPORT_USERNAME}
+    if not db.withdraw_balance(uid, body.amount, body.currency):
+        raise HTTPException(status_code=400, detail="invalid withdrawal")
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------

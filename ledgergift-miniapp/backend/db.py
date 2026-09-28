@@ -287,6 +287,31 @@ def add_balance(user_id, amount, currency, reason="manual_topup", deal_tag=None,
     record_balance_history(user_id, amount, currency, "credit", reason, deal_tag, actor_id)
 
 
+def withdraw_balance(user_id: int, amount: float, currency: str) -> bool:
+    """Reserve a withdrawal immediately, without allowing a negative balance."""
+    with closing(db()) as connection:
+        cursor = connection.execute(
+            """
+            UPDATE balances
+            SET amount = amount - ?
+            WHERE user_id = ? AND currency = ? AND amount >= ?
+            """,
+            (amount, user_id, currency, amount),
+        )
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return False
+        connection.execute(
+            """
+            INSERT INTO balance_history(user_id, currency, amount, operation, reason)
+            VALUES(?, ?, ?, 'debit', 'withdrawal_request')
+            """,
+            (user_id, currency, -amount),
+        )
+        connection.commit()
+    return True
+
+
 def get_balance(user_id: int, currency: str) -> float:
     with closing(db()) as connection:
         row = connection.execute(
@@ -310,7 +335,8 @@ def balance_history(user_id: int, limit: int = 10) -> list[dict]:
     with closing(db()) as connection:
         rows = connection.execute(
             """
-            SELECT amount, currency, operation, reason, deal_tag, created_at
+            SELECT amount, currency, operation, reason, deal_tag,
+                   datetime(created_at, '+3 hours') AS created_at
             FROM balance_history
             WHERE user_id = ?
               AND (reason != 'withdrawal_request' OR created_at >= datetime('now', '-1 hour'))

@@ -327,7 +327,11 @@
       const c = currency.value;
       if (!(amount > 0) || amount > Number(balances[c] || 0)) return toast(t("withdraw_invalid"));
       if (!requisites[c]) return toast(t("withdraw_no_requisites"));
-      try { await api("/api/balance/withdraw", { method: "POST", body: { currency: c, amount: amount } }); toast(t("withdraw_done")); document.getElementById("sheet").remove(); } catch (e) { toast(errText(e)); }
+      try {
+        await api("/api/balance/withdraw", { method: "POST", body: { currency: c, amount: amount } });
+        document.getElementById("sheet").remove();
+        routes.balance();
+      } catch (e) { toast(errText(e)); }
     });
   }
 
@@ -360,7 +364,10 @@
   function walletSheet(currency, amount) {
     showSheet('<button class="sheet-close" data-close>×</button><h2>' + esc(currencyLabel(currency)) + '</h2><div class="wallet-amount"><small>' + esc(t("current_balance")) + '</small><b>' + esc(fmt(amount)) + ' ' + esc(currency) + '</b></div><button class="btn primary block" id="sheetWallet">' + esc(t("wallets")) + '</button><button class="btn ghost block" id="sheetWithdraw">' + esc(t("b_withdraw")) + '</button>');
     document.getElementById("sheetWallet").addEventListener("click", function () { document.getElementById("sheet").remove(); routes.wallets(); });
-    document.getElementById("sheetWithdraw").addEventListener("click", function () { toast(t("withdraw_done")); document.getElementById("sheet").remove(); openManager(); });
+    document.getElementById("sheetWithdraw").addEventListener("click", function () {
+      document.getElementById("sheet").remove();
+      api("/api/balances").then(function (data) { withdrawSheet(data.balances); }).catch(function (e) { toast(errText(e)); });
+    });
   }
 
   function requisitesSheet(currency, item, amount) {
