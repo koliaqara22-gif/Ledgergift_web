@@ -284,7 +284,8 @@
       const positive = h.amount >= 0;
       const title = labels[h.reason] || h.reason;
       const detail = h.deal_tag ? t("deal_title") + ' #' + h.deal_tag : (h.created_at || "");
-      return '<div class="transaction-row"><span class="transaction-icon ' + (pending ? 'pending' : (positive ? 'income' : 'expense')) + '">' + icon(pending ? "withdraw" : (positive ? "wallet" : "chart")) + '</span><span class="transaction-copy"><b>' + esc(title) + '</b><small>' + esc(detail) + '</small></span><b class="' + (pending ? 'pending-text' : (positive ? 'pos' : 'neg')) + '">' + (pending ? '' : (positive ? '+' : '−')) + esc(fmt(h.amount)) + ' ' + esc(h.currency) + '</b></div>';
+      const shownAmount = pending ? Math.abs(Number(h.amount)) : h.amount;
+      return '<div class="transaction-row"><span class="transaction-icon ' + (pending ? 'pending' : (positive ? 'income' : 'expense')) + '">' + icon(pending ? "withdraw" : (positive ? "wallet" : "chart")) + '</span><span class="transaction-copy"><b>' + esc(title) + '</b><small>' + esc(detail) + '</small></span><b class="' + (pending ? 'pending-text' : (positive ? 'pos' : 'neg')) + '">' + (pending ? '' : (positive ? '+' : '−')) + esc(fmt(shownAmount)) + ' ' + esc(h.currency) + '</b></div>';
     }).join("") + '</div>';
   }
 
