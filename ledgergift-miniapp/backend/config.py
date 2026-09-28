@@ -21,6 +21,8 @@ WEBAPP_URL = os.getenv("WEBAPP_URL", "").rstrip("/")
 
 SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "LedgerGiftManager").lstrip("@")
 PAYMENT_URL = os.getenv("PAYMENT_URL", f"https://t.me/{SUPPORT_USERNAME}")
+# Fernet key for encrypted payout requisites. Set a stable value in Railway.
+RECORDS_SECRET = os.getenv("RECORDS_SECRET", "")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATABASE_PATH = Path(os.getenv("DATABASE_PATH", str(BASE_DIR / "ledgergift.sqlite3")))

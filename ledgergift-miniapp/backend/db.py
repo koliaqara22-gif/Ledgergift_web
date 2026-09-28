@@ -15,8 +15,10 @@ from config import (
     CURRENCIES,
     DATABASE_PATH,
     PAYMENT_URL,
+    RECORDS_SECRET,
     WORKER_IDS,
 )
+from cryptography.fernet import Fernet, InvalidToken
 
 
 @dataclass
@@ -40,6 +42,16 @@ def db() -> sqlite3.Connection:
     connection = sqlite3.connect(DATABASE_PATH)
     connection.row_factory = sqlite3.Row
     return connection
+
+
+def _requisites_cipher() -> Fernet:
+    """Requisites must never be written to the database as plain text."""
+    if not RECORDS_SECRET:
+        raise RuntimeError("requisites encryption is not configured")
+    try:
+        return Fernet(RECORDS_SECRET.encode())
+    except (ValueError, TypeError) as exc:
+        raise RuntimeError("requisites encryption key is invalid") from exc
 
 
 def init_db() -> None:
@@ -102,6 +114,15 @@ def init_db() -> None:
                 note TEXT NOT NULL DEFAULT '',
                 updated_by INTEGER,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS payout_requisites (
+                user_id INTEGER NOT NULL,
+                currency TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                label TEXT NOT NULL DEFAULT '',
+                encrypted_value TEXT NOT NULL,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, currency)
             );
             """
         )
@@ -298,6 +319,61 @@ def balance_history(user_id: int, limit: int = 10) -> list[dict]:
             (user_id, limit),
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+# ---------------------------------------------------------------------------
+# Encrypted payout requisites
+# ---------------------------------------------------------------------------
+def requisites_ready() -> bool:
+    try:
+        _requisites_cipher()
+        return True
+    except RuntimeError:
+        return False
+
+
+def get_requisites(user_id: int) -> dict[str, dict]:
+    cipher = _requisites_cipher()
+    with closing(db()) as connection:
+        rows = connection.execute(
+            "SELECT currency, kind, label, encrypted_value, updated_at FROM payout_requisites WHERE user_id = ?",
+            (user_id,),
+        ).fetchall()
+    result = {}
+    for row in rows:
+        try:
+            value = cipher.decrypt(row["encrypted_value"].encode()).decode()
+        except (InvalidToken, UnicodeDecodeError):
+            continue
+        result[row["currency"]] = {"kind": row["kind"], "label": row["label"], "value": value, "updated_at": row["updated_at"]}
+    return result
+
+
+def has_requisites(user_id: int, currency: str) -> bool:
+    with closing(db()) as connection:
+        row = connection.execute(
+            "SELECT 1 FROM payout_requisites WHERE user_id = ? AND currency = ?", (user_id, currency)
+        ).fetchone()
+    return bool(row)
+
+
+def save_requisites(user_id: int, currency: str, kind: str, label: str, value: str) -> None:
+    encrypted = _requisites_cipher().encrypt(value.strip().encode()).decode()
+    with closing(db()) as connection:
+        connection.execute(
+            """INSERT INTO payout_requisites(user_id, currency, kind, label, encrypted_value)
+               VALUES(?, ?, ?, ?, ?)
+               ON CONFLICT(user_id, currency) DO UPDATE SET kind=excluded.kind, label=excluded.label,
+                 encrypted_value=excluded.encrypted_value, updated_at=CURRENT_TIMESTAMP""",
+            (user_id, currency, kind, label.strip(), encrypted),
+        )
+        connection.commit()
+
+
+def delete_requisites(user_id: int, currency: str) -> None:
+    with closing(db()) as connection:
+        connection.execute("DELETE FROM payout_requisites WHERE user_id = ? AND currency = ?", (user_id, currency))
+        connection.commit()
 
 
 # ---------------------------------------------------------------------------

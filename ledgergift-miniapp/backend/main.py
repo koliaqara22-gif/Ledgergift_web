@@ -127,6 +127,7 @@ async def bootstrap(user: dict = Depends(current_user)) -> dict:
             "is_owner": db.is_owner(uid),
         },
         "balances": db.get_balances(uid),
+        "requisites_enabled": db.requisites_ready(),
         "profile": profile_payload(uid, user.get("username", ""), lang),
     }
     # Deep-link: startapp=deal_TAG opens a specific deal.
@@ -161,6 +162,38 @@ async def get_profile(user: dict = Depends(current_user)) -> dict:
 async def get_balances(user: dict = Depends(current_user)) -> dict:
     uid = int(user["id"])
     return {"balances": db.get_balances(uid), "history": db.balance_history(uid, 10)}
+
+
+@app.get("/api/requisites")
+async def get_requisites(user: dict = Depends(current_user)) -> dict:
+    if not db.requisites_ready():
+        return {"enabled": False, "items": {}}
+    return {"enabled": True, "items": db.get_requisites(int(user["id"]))}
+
+
+class RequisitesIn(BaseModel):
+    currency: str
+    kind: str = Field(max_length=30)
+    label: str = Field(default="", max_length=60)
+    value: str = Field(min_length=3, max_length=160)
+
+
+@app.put("/api/requisites")
+async def put_requisites(body: RequisitesIn, user: dict = Depends(current_user)) -> dict:
+    if body.currency not in CURRENCIES:
+        raise HTTPException(status_code=400, detail="bad currency")
+    if not db.requisites_ready():
+        raise HTTPException(status_code=503, detail="requisites encryption is not configured")
+    db.save_requisites(int(user["id"]), body.currency, body.kind, body.label, body.value)
+    return {"ok": True}
+
+
+@app.delete("/api/requisites/{currency}")
+async def remove_requisites(currency: str, user: dict = Depends(current_user)) -> dict:
+    if currency not in CURRENCIES:
+        raise HTTPException(status_code=400, detail="bad currency")
+    db.delete_requisites(int(user["id"]), currency)
+    return {"ok": True}
 
 
 @app.get("/api/deals/history")
@@ -230,6 +263,8 @@ async def create_deal(body: DealIn, user: dict = Depends(current_user)) -> dict:
         raise HTTPException(status_code=400, detail="bad currency")
     if body.amount <= 0:
         raise HTTPException(status_code=400, detail="amount must be positive")
+    if not db.has_requisites(uid, body.currency):
+        raise HTTPException(status_code=400, detail="requisites_required")
     buyer = body.buyer_username.strip().lstrip("@")
     if len(buyer) < 2:
         raise HTTPException(status_code=400, detail="bad buyer username")

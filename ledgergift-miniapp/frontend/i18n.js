@@ -58,6 +58,7 @@ window.I18N = {
   }
 };
 Object.assign(window.I18N.ru, {
+  wallets: "Кошельки и реквизиты", wallets_hint: "Добавьте способ получения средств для каждой нужной валюты.", current_balance: "Текущий баланс", flip_card: "Перевернуть карту", save: "Сохранить", delete: "Удалить", requisites_required: "Добавьте реквизиты для этой валюты перед созданием сделки.", requisites_saved: "Подключено", requisites_empty: "Не подключено", requisites_for: "Реквизиты для", requisites_name: "Название", requisites_name_hint: "Например: основной кошелёк", requisites_wallet: "Криптокошелёк", requisites_card: "Карта или счёт", requisites_username: "Telegram username", requisites_unavailable: "Защищённое хранение реквизитов ещё не настроено владельцем.",
   adm_team: "Команда", adm_team_hint: "Балансы, сделки и доступы сотрудников",
   adm_topup_member: "Пополнить баланс", adm_remove: "Удалить из команды",
   adm_owner: "Владелец", adm_admin: "Администратор", adm_deals: "Сделки сотрудника",
@@ -67,6 +68,7 @@ Object.assign(window.I18N.ru, {
   adm_unassigned: "Не назначен", adm_assign: "Ответственный", adm_note: "Закрытая заметка", adm_note_hint: "Например: ждём передачу NFT от продавца", adm_save_workspace: "Сохранить штаб сделки", adm_open_deal: "Открыть сделку"
 });
 Object.assign(window.I18N.en, {
+  wallets: "Wallets & payout details", wallets_hint: "Add a payout method for each currency you need.", current_balance: "Current balance", flip_card: "Flip card", save: "Save", delete: "Delete", requisites_required: "Add payout details for this currency before creating a deal.", requisites_saved: "Connected", requisites_empty: "Not connected", requisites_for: "Details for", requisites_name: "Label", requisites_name_hint: "For example: main wallet", requisites_wallet: "Crypto wallet", requisites_card: "Card or account", requisites_username: "Telegram username", requisites_unavailable: "Secure payout-details storage has not been set up by the owner yet.",
   adm_team: "Team", adm_team_hint: "Staff balances, deals and access",
   adm_topup_member: "Add balance", adm_remove: "Remove from team",
   adm_owner: "Owner", adm_admin: "Administrator", adm_deals: "Staff deals",

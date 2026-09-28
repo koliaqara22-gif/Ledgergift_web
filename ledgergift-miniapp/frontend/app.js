@@ -64,6 +64,7 @@
       insufficient_funds: t("insufficient_funds"),
       already_paid: t("already_paid"),
       deal_not_found: t("deal_not_found"),
+      requisites_required: t("requisites_required"),
     };
     const key = (e && e.message) || "";
     return map[key] || key || t("error");
@@ -115,6 +116,10 @@
   }
 
   function applyTheme() {
+    const light = localStorage.getItem("lg-theme") === "light";
+    document.body.classList.toggle("light-theme", light);
+    const themeButton = document.getElementById("themeBtn");
+    if (themeButton) themeButton.textContent = light ? "🌙" : "☀️";
     if (!tg) return;
     try {
       tg.setHeaderColor && tg.setHeaderColor("#000000");
@@ -234,7 +239,7 @@
   }
   function balanceRows(balances) {
     return state.boot.currencies.map(function (c) {
-      return '<div class="bal-row"><span class="currency-name">' + currencyIcon(c) + esc(currencyLabel(c)) + '</span><b>' + esc(fmt(balances[c] || 0)) + '</b></div>';
+      return '<button class="wallet-row" data-wallet="' + esc(c) + '"><span class="currency-name">' + currencyIcon(c) + esc(currencyLabel(c)) + '</span><b>' + esc(fmt(balances[c] || 0)) + ' <i>›</i></b></button>';
     }).join("");
   }
   function fmt(v) { return Number.isInteger(v) ? String(v) : Number(v).toFixed(2); }
@@ -257,7 +262,7 @@
       const d = await api("/api/balances");
       view.innerHTML =
         '<section class="pad fade">' + header(t("balance_title"), "\ud83d\udc8e") +
-          '<div class="card">' + balanceRows(d.balances) + '</div>' +
+          '<div class="balance-card"><div class="balance-card-head"><b>' + esc(t("balance_title")) + '</b><span>' + esc(t("wallets")) + '</span></div>' + balanceRows(d.balances) + '</div>' +
           '<div class="btn-row">' +
             '<button class="btn" data-act="withdraw">' + esc(t("b_withdraw")) + '</button>' +
             '<button class="btn primary" data-act="topup">' + esc(t("b_topup")) + '</button>' +
@@ -268,10 +273,54 @@
         try { await api("/api/balance/withdraw", { method: "POST" }); toast(t("withdraw_done")); } catch (e) { toast(errText(e)); }
       });
       view.querySelector('[data-act="topup"]').addEventListener("click", function () {
-        toast(t("topup_hint")); openManager();
+        go("wallets");
       });
+      view.querySelectorAll("[data-wallet]").forEach(function (b) { b.addEventListener("click", function () { walletSheet(b.getAttribute("data-wallet"), d.balances[b.getAttribute("data-wallet")] || 0); }); });
     } catch (e) { toast(errText(e)); }
   };
+
+  // =======================================================================
+  // WALLETS / REQUISITES
+  // =======================================================================
+  routes.wallets = async function () {
+    view.innerHTML = '<div class="loader"><div class="spin"></div></div>';
+    try {
+      const data = await api("/api/requisites");
+      const balances = await api("/api/balances");
+      const rows = state.boot.currencies.map(function (c) {
+        const item = data.items[c];
+        return '<button class="wallet-row" data-wallet="' + esc(c) + '"><span class="currency-name">' + currencyIcon(c) + esc(currencyLabel(c)) + '</span><b>' + (item ? '✓ ' + esc(t("requisites_saved")) : esc(t("requisites_empty"))) + ' <i>›</i></b></button>';
+      }).join("");
+      view.innerHTML = '<section class="pad fade">' + header(t("wallets"), "◈") +
+        (data.enabled ? '<div class="wallet-intro">' + esc(t("wallets_hint")) + '</div>' : '<div class="card neg">' + esc(t("requisites_unavailable")) + '</div>') +
+        '<div class="balance-card">' + rows + '</div></section>';
+      if (data.enabled) view.querySelectorAll("[data-wallet]").forEach(function (b) { b.addEventListener("click", function () { requisitesSheet(b.getAttribute("data-wallet"), data.items[b.getAttribute("data-wallet")] || null, balances.balances[b.getAttribute("data-wallet")] || 0); }); });
+    } catch (e) { toast(errText(e)); }
+  };
+
+  function showSheet(html) {
+    const old = document.getElementById("sheet"); if (old) old.remove();
+    document.body.insertAdjacentHTML("beforeend", '<div class="sheet-back" id="sheet"><div class="sheet">' + html + '</div></div>');
+    document.getElementById("sheet").addEventListener("click", function (e) { if (e.target.id === "sheet") e.currentTarget.remove(); });
+    document.querySelector("#sheet [data-close]").addEventListener("click", function () { document.getElementById("sheet").remove(); });
+  }
+
+  function walletSheet(currency, amount) {
+    showSheet('<button class="sheet-close" data-close>×</button><h2>' + esc(currencyLabel(currency)) + '</h2><div class="wallet-amount"><small>' + esc(t("current_balance")) + '</small><b>' + esc(fmt(amount)) + ' ' + esc(currency) + '</b></div><button class="btn primary block" id="sheetWallet">' + esc(t("wallets")) + '</button><button class="btn ghost block" id="sheetWithdraw">' + esc(t("b_withdraw")) + '</button>');
+    document.getElementById("sheetWallet").addEventListener("click", function () { document.getElementById("sheet").remove(); routes.wallets(); });
+    document.getElementById("sheetWithdraw").addEventListener("click", function () { toast(t("withdraw_done")); document.getElementById("sheet").remove(); openManager(); });
+  }
+
+  function requisitesSheet(currency, item, amount) {
+    const crypto = ["TON", "USDT"].includes(currency);
+    const stars = currency === "Stars";
+    const kind = crypto ? t("requisites_wallet") : (stars ? t("requisites_username") : t("requisites_card"));
+    showSheet('<button class="sheet-close" data-close>×</button><h2>' + esc(currencyLabel(currency)) + '</h2><p class="sheet-sub">' + esc(t("requisites_for") + " " + kind) + '</p><label class="fld"><span>' + esc(t("requisites_name")) + '</span><input class="field" id="reqLabel" value="' + esc(item ? item.label : "") + '" placeholder="' + esc(t("requisites_name_hint")) + '"></label><label class="fld"><span>' + esc(kind) + '</span><input class="field" id="reqValue" value="' + esc(item ? item.value : "") + '" placeholder="' + esc(stars ? "@username" : (crypto ? "UQ..." : "0000 0000 0000 0000")) + '"></label><button class="btn primary block" id="reqSave">' + esc(t("save")) + '</button>' + (item ? '<button class="btn danger block" id="reqDelete">' + esc(t("delete")) + '</button>' : ''));
+    document.getElementById("reqSave").addEventListener("click", async function () {
+      try { await api("/api/requisites", { method: "PUT", body: { currency: currency, kind: crypto ? "wallet" : (stars ? "username" : "card"), label: document.getElementById("reqLabel").value.trim(), value: document.getElementById("reqValue").value.trim() } }); toast(t("saved")); document.getElementById("sheet").remove(); routes.wallets(); } catch (e) { toast(errText(e)); }
+    });
+    const del = document.getElementById("reqDelete"); if (del) del.addEventListener("click", async function () { try { await api("/api/requisites/" + encodeURIComponent(currency), { method: "DELETE" }); document.getElementById("sheet").remove(); routes.wallets(); } catch (e) { toast(errText(e)); } });
+  }
 
   // =======================================================================
   // PROFILE
@@ -285,18 +334,13 @@
       const dealRows = deals.deals.length ? deals.deals.map(function (d) { return '<button class="deal-history-row" data-deal="' + esc(d.tag) + '"><span><b>#' + esc(d.tag) + '</b><small>' + esc(d.item_type_label) + '</small></span><span><b>' + esc(d.amount_label) + ' ' + esc(d.currency) + '</b><small>' + esc(statusLabel(d.status)) + '</small></span></button>'; }).join("") : '<p class="muted">' + esc(t("history_empty")) + '</p>';
       view.innerHTML =
         '<section class="pad fade">' + header(t("profile_title"), "\ud83d\udc64") +
-          '<div class="card profile">' +
-            '<div class="pf-avatar">' + esc((p.username || "?").charAt(0).toUpperCase()) + '</div>' +
-            '<div class="pf-name">' + esc(uname) + '</div>' +
-            '<div class="pf-level">' + esc(p.level.label) + '</div>' +
-            '<div class="pf-stats">' +
-              '<div><b>' + esc(String(p.orders)) + '</b><span>' + esc(t("success_orders")) + '</span></div>' +
-              '<div><b>' + esc(p.rating.toFixed(1)) + '</b><span>' + esc(t("rating")) + '</span></div>' +
-              '<div><b>' + esc(p.volume_label) + '</b><span>' + esc(t("volume")) + '</span></div>' +
-            '</div>' +
-            '<div class="pf-id">ID: <code>' + esc(String(p.id)) + '</code></div>' +
-          '</div><h3 class="subhead">' + esc(t("deal_title")) + '</h3><div class="deal-history">' + dealRows + '</div>' +
+          '<div class="flip-wrap" id="flipCard"><div class="flip-card"><div class="flip-face flip-front"><span class="card-brand">LedgerGift</span><span class="card-orbit"></span><div class="pf-avatar">' + esc((p.username || "?").charAt(0).toUpperCase()) + '</div><div class="pf-name">' + esc(uname) + '</div><div class="pf-level">' + esc(p.level.label) + '</div><small>' + esc(t("volume")) + '</small><strong>' + esc(p.volume_label) + '</strong><em>' + esc(t("flip_card")) + ' ↻</em></div><div class="flip-face flip-back"><span class="card-brand">LedgerGift · Profile</span><div class="card-line"></div><div class="card-id">ID ' + esc(String(p.id)) + '</div><div class="pf-stats"><div><b>' + esc(String(p.orders)) + '</b><span>' + esc(t("success_orders")) + '</span></div><div><b>' + esc(p.rating.toFixed(1)) + '</b><span>' + esc(t("rating")) + '</span></div><div><b>' + esc(p.volume_label) + '</b><span>' + esc(t("volume")) + '</span></div></div><em>' + esc(t("flip_card")) + ' ↻</em></div></div></div>' +
+          '<div class="profile-actions"><button class="profile-action active" id="profileWallets">◈ ' + esc(t("wallets")) + '</button><button class="profile-action" id="profileLang">◎ ' + esc(t("a_language")) + '</button></div>' +
+          '<h3 class="subhead">' + esc(t("deal_title")) + '</h3><div class="deal-history">' + dealRows + '</div>' +
         '</section>';
+      document.getElementById("flipCard").addEventListener("click", function () { this.classList.toggle("flipped"); haptic(); });
+      document.getElementById("profileWallets").addEventListener("click", function () { go("wallets"); });
+      document.getElementById("profileLang").addEventListener("click", function () { go("language"); });
       view.querySelectorAll("[data-deal]").forEach(function (b) { b.addEventListener("click", function () { go("deal", b.getAttribute("data-deal")); }); });
     } catch (e) { toast(errText(e)); }
   };
@@ -768,6 +812,7 @@
     b.addEventListener("click", function () { haptic(); go(b.getAttribute("data-route")); });
   });
   document.getElementById("langBtn").addEventListener("click", function () { go("language"); });
+  document.getElementById("themeBtn").addEventListener("click", function () { localStorage.setItem("lg-theme", localStorage.getItem("lg-theme") === "light" ? "dark" : "light"); applyTheme(); haptic(); });
   document.getElementById("homeBtn").addEventListener("click", function () { haptic(); go("home"); });
 
   boot();
