@@ -11,6 +11,19 @@
     draft: {},        // create-order wizard draft
   };
 
+  const ICONS = {
+    gift: '<svg viewBox="0 0 24 24"><path d="M4 10h16v10H4zM12 10v10M3 6h18v4H3zM8 6a2.5 2.5 0 1 1 4 0v0H8zm4 0a2.5 2.5 0 1 1 4 0h-4z"/></svg>',
+    wallet: '<svg viewBox="0 0 24 24"><path d="M4 6h14a2 2 0 0 1 2 2v10H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zm0 4h16M16 14h2"/></svg>',
+    shield: '<svg viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5-3.4 8.2-8 10-4.6-1.8-8-5-8-10V6z"/></svg>',
+    chart: '<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+    user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
+    chat: '<svg viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8 8 0 0 1-3.4-.8L4 20l1.5-3.5A7.2 7.2 0 0 1 4 12a7.5 7.5 0 0 1 8-7.5 7.5 7.5 0 0 1 8 7z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg>',
+    globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
+    team: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M17 5a3 3 0 0 1 0 6M20 20a5 5 0 0 0-3-4.6"/></svg>',
+    settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2 2-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-2.8v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-2-2 .1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5.6v-2.8h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2-2 .1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.8v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2 2-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1z"/></svg>'
+  };
+  function icon(name) { return '<span class="app-icon">' + (ICONS[name] || ICONS.shield) + '</span>'; }
+
   // ---- i18n -------------------------------------------------------------
   function t(key) {
     const pack = window.I18N[state.lang] || window.I18N.en;
@@ -118,8 +131,10 @@
   function applyTheme() {
     const light = localStorage.getItem("lg-theme") === "light";
     document.body.classList.toggle("light-theme", light);
-    const themeButton = document.getElementById("themeBtn");
-    if (themeButton) themeButton.textContent = light ? "🌙" : "☀️";
+    const lightButton = document.getElementById("themeLight");
+    const darkButton = document.getElementById("themeDark");
+    if (lightButton) lightButton.classList.toggle("active", light);
+    if (darkButton) darkButton.classList.toggle("active", !light);
     if (!tg) return;
     try {
       tg.setHeaderColor && tg.setHeaderColor("#000000");
@@ -148,14 +163,14 @@
         '<span class="gc-ic">' + icon + '</span><span class="gc-lbl">' + esc(label) + '</span></button>';
     };
     let grid = "";
-    grid += card("create", "\ud83c\udf81", t("a_create"), "accent span2");
-    grid += card("balance", "\ud83d\udc8e", t("a_balance"));
-    grid += card("security", "\ud83d\udee1", t("a_security"));
-    grid += card("top", "\ud83d\udcca", t("a_top"));
-    grid += card("profile", "\ud83d\udc64", t("a_profile"));
-    grid += '<button class="grid-card" data-manager><span class="gc-ic">\ud83d\udcac</span><span class="gc-lbl">' + esc(t("a_manager")) + '</span></button>';
-    grid += card("language", "\ud83c\udf10", t("a_language"));
-    if (isAdmin) grid += card("admin", "\ud83d\udee1", t("a_admin"), "admin-card span2");
+    grid += card("create", icon("gift"), t("a_create"), "accent span2");
+    grid += card("balance", icon("wallet"), t("a_balance"));
+    grid += card("security", icon("shield"), t("a_security"));
+    grid += card("top", icon("chart"), t("a_top"));
+    grid += card("profile", icon("user"), t("a_profile"));
+    grid += '<button class="grid-card" data-manager><span class="gc-ic">' + icon("chat") + '</span><span class="gc-lbl">' + esc(t("a_manager")) + '</span></button>';
+    grid += card("language", icon("globe"), t("a_language"));
+    if (isAdmin) grid += card("admin", icon("shield"), t("a_admin"), "admin-card span2");
 
     view.innerHTML =
       '<section class="pad fade">' +
@@ -187,7 +202,7 @@
     const li = function (n) { return '<li>' + esc(t("sec_" + n)) + '</li>'; };
     view.innerHTML =
       '<section class="pad fade">' +
-        header(t("security_title"), "\ud83d\udee1") +
+        header(t("security_title"), icon("shield")) +
         '<ul class="rules">' + li(1) + li(2) + li(3) + li(4) + '</ul>' +
         '<button class="btn primary block" id="securityManager">@' + esc(state.boot.support_username) + '</button>' +
       '</section>';
@@ -205,7 +220,7 @@
       rows += '<button class="lang-row' + active + '" data-lang="' + code + '">' + esc(langs[code]) + '</button>';
     });
     view.innerHTML =
-      '<section class="pad fade">' + header(t("language_title"), "\ud83c\udf10") +
+      '<section class="pad fade">' + header(t("language_title"), icon("globe")) +
       '<div class="lang-list">' + rows + '</div></section>';
     view.querySelectorAll("[data-lang]").forEach(function (b) {
       b.addEventListener("click", async function () {
@@ -261,7 +276,7 @@
     try {
       const d = await api("/api/balances");
       view.innerHTML =
-        '<section class="pad fade">' + header(t("balance_title"), "\ud83d\udc8e") +
+        '<section class="pad fade">' + header(t("balance_title"), icon("wallet")) +
           '<div class="balance-card"><div class="balance-card-head"><b>' + esc(t("balance_title")) + '</b><span>' + esc(t("wallets")) + '</span></div>' + balanceRows(d.balances) + '</div>' +
           '<div class="btn-row">' +
             '<button class="btn" data-act="withdraw">' + esc(t("b_withdraw")) + '</button>' +
@@ -291,7 +306,7 @@
         const item = data.items[c];
         return '<button class="wallet-row" data-wallet="' + esc(c) + '"><span class="currency-name">' + currencyIcon(c) + esc(currencyLabel(c)) + '</span><b>' + (item ? '✓ ' + esc(t("requisites_saved")) : esc(t("requisites_empty"))) + ' <i>›</i></b></button>';
       }).join("");
-      view.innerHTML = '<section class="pad fade">' + header(t("wallets"), "◈") +
+      view.innerHTML = '<section class="pad fade">' + header(t("wallets"), icon("wallet")) +
         (data.enabled ? '<div class="wallet-intro">' + esc(t("wallets_hint")) + '</div>' : '<div class="card neg">' + esc(t("requisites_unavailable")) + '</div>') +
         '<div class="balance-card">' + rows + '</div></section>';
       if (data.enabled) view.querySelectorAll("[data-wallet]").forEach(function (b) { b.addEventListener("click", function () { requisitesSheet(b.getAttribute("data-wallet"), data.items[b.getAttribute("data-wallet")] || null, balances.balances[b.getAttribute("data-wallet")] || 0); }); });
@@ -337,7 +352,7 @@
       const cardTheme = localStorage.getItem("lg-card-theme") || "gold";
       const dealRows = deals.deals.length ? deals.deals.map(function (d) { return '<button class="deal-history-row" data-deal="' + esc(d.tag) + '"><span><b>#' + esc(d.tag) + '</b><small>' + esc(d.item_type_label) + '</small></span><span><b>' + esc(d.amount_label) + ' ' + esc(d.currency) + '</b><small>' + esc(statusLabel(d.status)) + '</small></span></button>'; }).join("") : '<p class="muted">' + esc(t("history_empty")) + '</p>';
       view.innerHTML =
-        '<section class="pad fade">' + header(t("profile_title"), "\ud83d\udc64") +
+        '<section class="pad fade">' + header(t("profile_title"), icon("user")) +
           '<div class="flip-wrap theme-' + esc(cardTheme) + '" id="flipCard"><div class="flip-card"><div class="flip-face flip-front"><span class="card-brand">LedgerGift</span><button class="card-palette" id="cardPalette" aria-label="card color">◉</button><div class="pf-avatar">' + esc((p.username || "?").charAt(0).toUpperCase()) + '</div><div class="pf-name">' + esc(displayName) + '</div><div class="pf-user">' + esc(uname) + '</div><small>' + esc(t("total_balance")) + '</small><strong>' + esc(fmt(total)) + '</strong><em>' + esc(t("flip_card")) + ' ↻</em></div><div class="flip-face flip-back"><span class="card-brand">LedgerGift</span><div class="card-line"></div><div class="card-sign">' + esc(displayName) + '</div><div class="card-meta"><small>TELEGRAM ID</small><b>' + esc(String(p.id)) + '</b></div><div class="pf-stats"><div><b>' + esc(String(p.orders)) + '</b><span>' + esc(t("all_deals")) + '</span></div><div><b>' + esc(String(p.orders)) + '</b><span>' + esc(t("success_orders")) + '</span></div><div><b>0</b><span>' + esc(t("st_completed")) + '</span></div><div><b>0</b><span>' + esc(t("cancelled")) + '</span></div></div><em>' + esc(t("flip_card")) + ' ↻</em></div></div></div>' +
           '<div class="profile-actions"><button class="profile-action active" id="profileWallets">◈ ' + esc(t("wallets")) + '</button><button class="profile-action" id="profileLang">◎ ' + esc(t("a_language")) + '</button></div>' +
           '<h3 class="subhead">' + esc(t("deal_title")) + '</h3><div class="deal-history">' + dealRows + '</div>' +
@@ -376,7 +391,7 @@
         return '<button class="seg' + (m === mode ? " active" : "") + '" data-mode="' + m + '">' + esc(label) + '</button>';
       };
       view.innerHTML =
-        '<section class="pad fade">' + header(t("top_title"), "\ud83d\udcca") +
+        '<section class="pad fade">' + header(t("top_title"), icon("chart")) +
           '<div class="segment">' + seg("orders", t("by_orders")) + seg("volume", t("by_volume")) + '</div>' +
           '<div class="top-list">' + list + '</div></section>';
       view.querySelectorAll("[data-mode]").forEach(function (b) {
@@ -389,7 +404,7 @@
   // CREATE ORDER (wizard)
   // =======================================================================
   function wizardShell(inner) {
-    view.innerHTML = '<section class="pad fade">' + header(t("create_title"), "\ud83c\udf81") + inner + '</section>';
+    view.innerHTML = '<section class="pad fade">' + header(t("create_title"), icon("gift")) + inner + '</section>';
   }
   function backBtn(handler) {
     const b = el('<button class="btn ghost">' + esc(t("back")) + '</button>');
@@ -498,7 +513,7 @@
 
   function dealCreated(deal, link) {
     view.innerHTML =
-      '<section class="pad fade">' + header(t("deal_created"), "\u2705") +
+      '<section class="pad fade">' + header(t("deal_created"), icon("shield")) +
         '<div class="card">' +
           row(t("item"), deal.item_type_label) +
           row(t("amount"), deal.amount_label + " " + deal.currency) +
@@ -557,7 +572,7 @@
     actions += '<button class="btn ghost block" id="supBtn">' + esc(t("support")) + '</button>';
 
     view.innerHTML =
-      '<section class="pad fade">' + header(t("deal_title") + " #" + deal.tag, "\ud83d\udee1") +
+      '<section class="pad fade">' + header(t("deal_title") + " #" + deal.tag, icon("shield")) +
         '<div class="card">' +
           row(t("status"), statusLabel(deal.status)) +
           row(t("item"), deal.item_type_label) +
@@ -594,18 +609,18 @@
       return '<button class="adm-item" data-adm="' + act + '"><span>' + icon + '</span>' + esc(label) + '</button>';
     };
     let items = "";
-    items += item("addbalance", "\ud83d\udcb3", t("adm_addbalance"));
-    items += item("user", "\ud83d\udc64", t("adm_user"));
-    items += item("deal", "\ud83d\udce6", t("adm_deal"));
-    items += item("active", "\u26a1", t("adm_active"));
-    items += item("stats", "\ud83d\udcca", t("adm_stats"));
-    items += item("paylink", "\u2699\ufe0f", t("adm_paylink"));
-    items += item("myhistory", "\ud83e\uddfe", t("adm_myhistory"));
+    items += item("addbalance", icon("wallet"), t("adm_addbalance"));
+    items += item("user", icon("user"), t("adm_user"));
+    items += item("deal", icon("gift"), t("adm_deal"));
+    items += item("active", icon("chart"), t("adm_active"));
+    items += item("stats", icon("chart"), t("adm_stats"));
+    items += item("paylink", icon("settings"), t("adm_paylink"));
+    items += item("myhistory", icon("wallet"), t("adm_myhistory"));
     if (isOwner) {
-      items += item("team", "\ud83d\udc65", t("adm_team"));
-      items += item("addadmin", "\u2795", t("adm_addadmin"));
+      items += item("team", icon("team"), t("adm_team"));
+      items += item("addadmin", icon("team"), t("adm_addadmin"));
     }
-    view.innerHTML = '<section class="pad fade">' + header(t("admin_title"), "\ud83d\udee1") +
+    view.innerHTML = '<section class="pad fade">' + header(t("admin_title"), icon("shield")) +
       '<div class="adm-list">' + items + '</div><div id="admPanel"></div></section>';
     view.querySelectorAll("[data-adm]").forEach(function (b) {
       b.addEventListener("click", function () { admAction(b.getAttribute("data-adm")); });
@@ -822,8 +837,8 @@
   document.querySelectorAll(".tab").forEach(function (b) {
     b.addEventListener("click", function () { haptic(); go(b.getAttribute("data-route")); });
   });
-  document.getElementById("langBtn").addEventListener("click", function () { go("language"); });
-  document.getElementById("themeBtn").addEventListener("click", function () { localStorage.setItem("lg-theme", localStorage.getItem("lg-theme") === "light" ? "dark" : "light"); applyTheme(); haptic(); });
+  document.getElementById("themeLight").addEventListener("click", function () { localStorage.setItem("lg-theme", "light"); applyTheme(); haptic(); });
+  document.getElementById("themeDark").addEventListener("click", function () { localStorage.setItem("lg-theme", "dark"); applyTheme(); haptic(); });
   document.getElementById("homeBtn").addEventListener("click", function () { haptic(); go("home"); });
 
   boot();
