@@ -636,10 +636,12 @@
   function statusLabel(s) { return t("st_" + s) || s; }
   function dealTimeline(status) {
     const steps = ["created", "paid", "transferred", "completed"];
-    const current = Math.max(0, steps.indexOf(status));
+    // A paid deal is already in the hand-over phase. It is not necessary to
+    // wait for an admin click before the buyer can confirm receipt.
+    const current = status === "paid" ? 2 : Math.max(0, steps.indexOf(status));
     return '<div class="deal-timeline">' + steps.map(function (step, index) {
       const cls = index < current ? "done" : (index === current ? "current" : "");
-      return '<div class="timeline-step ' + cls + '"><span>' + icon(index <= current ? "check" : "clock") + '</span><small>' + esc(t("timeline_" + step)) + '</small></div>';
+      return '<div class="timeline-step ' + cls + '"><span>' + icon(index < current || status === "completed" ? "check" : "clock") + '</span><small>' + esc(t("timeline_" + step)) + '</small></div>';
     }).join("") + '</div>';
   }
 
@@ -663,7 +665,7 @@
     if (!role.can_pay && !role.can_confirm && !role.is_seller && !role.is_staff) {
       actions += '<p class="muted">' + esc(t("not_your_deal")) + '</p>';
     }
-    actions += '<button class="btn ghost block" id="supBtn">' + esc(t("support")) + '</button>';
+    actions += '<button class="btn ghost block" id="supBtn">' + esc(role.can_confirm ? t("transfer_to_manager") : t("support")) + '</button>';
 
     view.innerHTML =
       '<section class="pad fade">' + header(t("deal_title") + " #" + deal.tag, icon("shield")) +

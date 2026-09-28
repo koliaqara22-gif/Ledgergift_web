@@ -329,7 +329,9 @@ def _deal_view(deal: db.Deal, user: dict, lang: str) -> dict:
             "is_seller": is_seller,
             "is_staff": staff,
             "can_pay": (is_buyer or staff) and deal.status == "created",
-            "can_confirm": (is_buyer or staff) and deal.status == "transferred",
+            # Buyer confirms receipt after payment; the transfer itself happens
+            # with the manager and must not leave the buyer without an action.
+            "can_confirm": (is_buyer or staff) and deal.status in ("paid", "transferred"),
         },
         "support_username": SUPPORT_USERNAME,
     }

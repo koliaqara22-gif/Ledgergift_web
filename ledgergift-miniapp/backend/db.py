@@ -497,7 +497,7 @@ def release_deal_to_seller(tag: str) -> tuple[bool, str, Deal | None]:
         return False, "deal_not_found", None
     if deal.status == "completed":
         return False, "already_completed", deal
-    if deal.status != "transferred":
+    if deal.status not in ("paid", "transferred"):
         return False, "not_paid", deal
     add_balance(deal.seller_id, deal.amount, deal.currency, reason="deal_release", deal_tag=deal.tag)
     increment_success_orders(deal.seller_id, deal.amount)
