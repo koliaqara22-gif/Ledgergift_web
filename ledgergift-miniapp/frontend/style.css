@@ -11,8 +11,9 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
 #app{position:relative;z-index:1;max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;
   padding-bottom:calc(78px + env(safe-area-inset-bottom))}
 .nft-atmosphere{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
-.nft-float{position:absolute;display:block;object-fit:contain;opacity:.13;filter:drop-shadow(0 5px 10px rgba(0,0,0,.32));will-change:transform;animation:nft-drift 15s ease-in-out infinite alternate}
+.nft-float{position:absolute;display:block;object-fit:contain;opacity:.22;filter:brightness(1.16) saturate(1.08) drop-shadow(0 5px 10px rgba(0,0,0,.32));will-change:transform;animation:nft-drift 15s ease-in-out infinite alternate}
 .nft-pepe{width:92px;left:-29px;top:20%;animation-duration:18s;animation-delay:-7s}.nft-watch{width:76px;right:-24px;top:9%;animation-duration:16s;animation-delay:-3s}.nft-snoop{width:75px;right:-18px;top:44%;animation-duration:20s;animation-delay:-13s}.nft-bag{width:64px;left:-17px;bottom:23%;animation-duration:14s;animation-delay:-9s}.nft-cigar{width:82px;right:-29px;bottom:8%;animation-duration:19s;animation-delay:-5s}
+.nft-mushroom{width:88px;left:-26px;top:58%;animation-duration:17s;animation-delay:-2s}.nft-rap{width:98px;right:-38px;top:68%;animation-duration:21s;animation-delay:-11s}.nft-cat{width:67px;left:-15px;top:76%;animation-duration:15s;animation-delay:-6s}.nft-helmet{width:72px;right:-21px;top:29%;animation-duration:18s;animation-delay:-15s}.nft-cap{width:85px;left:-31px;top:3%;animation-duration:20s;animation-delay:-4s}.nft-ring{width:66px;right:-15px;bottom:27%;animation-duration:16s;animation-delay:-8s}
 @keyframes nft-drift{0%{transform:translate3d(-3px,-8px,0) rotate(-4deg)}55%{transform:translate3d(10px,13px,0) rotate(4deg)}100%{transform:translate3d(-7px,25px,0) rotate(-2deg)}}
 @media (prefers-reduced-motion:reduce){.nft-float{animation:none}}
 
