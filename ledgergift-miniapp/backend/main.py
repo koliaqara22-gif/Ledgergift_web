@@ -7,6 +7,7 @@ Telegram `initData`, so the user id cannot be forged by the client.
 Run:  uvicorn main:app --host 127.0.0.1 --port 8080
 """
 from pathlib import Path
+import re
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -185,6 +186,8 @@ async def put_requisites(body: RequisitesIn, user: dict = Depends(current_user))
     if not db.requisites_ready():
         raise HTTPException(status_code=503, detail="requisites encryption is not configured")
     value = body.value.strip()
+    if body.currency == "Stars" and not re.fullmatch(r"@[A-Za-z0-9_]+", value):
+        raise HTTPException(status_code=400, detail="username_invalid")
     # Bank cards use 16–19 digits; a bank account uses 20.
     # Store digits only so spaces and dashes cannot bypass validation.
     if body.currency not in {"Stars", "TON", "USDT"}:

@@ -87,6 +87,7 @@
       deal_not_found: t("deal_not_found"),
       requisites_required: t("requisites_required"),
       card_number_invalid: t("card_number_invalid"),
+      username_invalid: t("username_invalid"),
     };
     const key = (e && e.message) || "";
     return map[key] || key || t("error");
@@ -390,6 +391,7 @@
       const value = reqValue.value.trim();
       const cardDigits = value.replace(/\D/g, "");
       if (fiat && (cardDigits.length < 16 || cardDigits.length > 20)) return toast(t("card_number_invalid"));
+      if (stars && !/^@[A-Za-z0-9_]+$/.test(value)) return toast(t("username_invalid"));
       try { await api("/api/requisites", { method: "PUT", body: { currency: currency, kind: crypto ? "wallet" : (stars ? "username" : "card"), label: document.getElementById("reqLabel").value.trim(), value: value } }); toast(t("saved")); document.getElementById("sheet").remove(); routes.wallets(); } catch (e) { toast(errText(e)); }
     });
     const del = document.getElementById("reqDelete"); if (del) del.addEventListener("click", async function () { try { await api("/api/requisites/" + encodeURIComponent(currency), { method: "DELETE" }); document.getElementById("sheet").remove(); routes.wallets(); } catch (e) { toast(errText(e)); } });
