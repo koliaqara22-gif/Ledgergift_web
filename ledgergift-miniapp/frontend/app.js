@@ -22,6 +22,11 @@
     user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
     chat: '<svg viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8 8 0 0 1-3.4-.8L4 20l1.5-3.5A7.2 7.2 0 0 1 4 12a7.5 7.5 0 0 1 8-7.5 7.5 7.5 0 0 1 8 7z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg>',
     globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
+    nft: '<svg viewBox="0 0 24 24"><path d="m12 3 7 4v10l-7 4-7-4V7zM5 7l7 4 7-4M12 11v10"/><path d="m8 9 4 2 4-2"/></svg>',
+    stars: '<svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>',
+    username: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0M18 5l2 2-2 2"/></svg>',
+    crypto: '<svg viewBox="0 0 24 24"><path d="m12 3 7 9-7 9-7-9zM5 12h14M12 3v18"/></svg>',
+    premium: '<svg viewBox="0 0 24 24"><path d="m4 8 4 4 4-7 4 7 4-4-2 10H6zM6 21h12"/></svg>',
     team: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M17 5a3 3 0 0 1 0 6M20 20a5 5 0 0 0-3-4.6"/></svg>',
     settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2 2-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-2.8v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-2-2 .1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5.6v-2.8h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2-2 .1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.8v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2 2-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1z"/></svg>'
   };
@@ -460,11 +465,11 @@
 
   function stepType() {
     const types = state.boot.deal_types;
-    const icons = { nft: "\ud83d\uddbc", stars: "\u2b50", username: "\ud83d\udc64", crypto: "\ud83d\udca0", premium: "\ud83d\udc51" };
+    const icons = { nft: "nft", stars: "stars", username: "username", crypto: "crypto", premium: "premium" };
     let cards = "";
     Object.keys(types).forEach(function (k) {
       const label = types[k][state.lang === "ru" ? "ru" : "en"] || types[k].en;
-      cards += '<button class="type-card" data-type="' + k + '"><span class="tc-ic">' + (icons[k] || "") + '</span>' + esc(label) + '</button>';
+      cards += '<button class="type-card type-' + esc(k) + '" data-type="' + k + '"><span class="tc-ic">' + icon(icons[k] || "gift") + '</span><span>' + esc(label) + '</span></button>';
     });
     wizardShell('<p class="step-label">' + esc(t("step_type")) + '</p><div class="type-grid">' + cards + '</div>');
     view.querySelectorAll("[data-type]").forEach(function (b) {

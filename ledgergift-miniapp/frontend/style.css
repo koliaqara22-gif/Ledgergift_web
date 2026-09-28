@@ -126,7 +126,7 @@ code{background:var(--bg2);padding:2px 6px;border-radius:6px;font-size:13px}
   padding:18px 12px;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;
   display:flex;flex-direction:column;align-items:center;gap:8px}
 .type-card:active,.cur-card:active{background:var(--card2);border-color:var(--accent)}
-.tc-ic{font-size:24px}
+.tc-ic{display:grid;place-items:center;width:42px;height:42px;margin:0 auto 9px;border-radius:14px;background:rgba(82,205,255,.12);color:#4fceff}.tc-ic .app-icon{display:grid;place-items:center}.tc-ic svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.type-card{display:flex;min-height:102px;flex-direction:column;align-items:center;justify-content:center;gap:0}.type-card.type-stars .tc-ic{background:rgba(255,191,35,.14);color:#f5b61c}.type-card.type-username .tc-ic{background:rgba(157,103,255,.14);color:#a871ff}.type-card.type-crypto .tc-ic{background:rgba(53,162,255,.14);color:#49a6ff}.type-card.type-premium .tc-ic{background:rgba(255,154,49,.15);color:#f39a32}.type-card.type-nft .tc-ic{background:rgba(77,211,184,.13);color:#48cda8}
 .field{width:100%;background:var(--card);border:1px solid var(--line);color:var(--text);
   padding:15px;border-radius:14px;font-size:16px;outline:none}
 .field:focus{border-color:var(--accent)}
