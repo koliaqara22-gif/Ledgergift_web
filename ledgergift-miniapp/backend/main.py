@@ -184,7 +184,17 @@ async def put_requisites(body: RequisitesIn, user: dict = Depends(current_user))
         raise HTTPException(status_code=400, detail="bad currency")
     if not db.requisites_ready():
         raise HTTPException(status_code=503, detail="requisites encryption is not configured")
-    db.save_requisites(int(user["id"]), body.currency, body.kind, body.label, body.value)
+    value = body.value.strip()
+    # Bank cards use 16–19 digits; a bank account uses 20.
+    # Store digits only so spaces and dashes cannot bypass validation.
+    if body.currency not in {"Stars", "TON", "USDT"}:
+        if any(not (char.isdigit() or char in " -") for char in value):
+            raise HTTPException(status_code=400, detail="card_number_invalid")
+        digits = "".join(char for char in value if char.isdigit())
+        if len(digits) < 16 or len(digits) > 20:
+            raise HTTPException(status_code=400, detail="card_number_invalid")
+        value = digits
+    db.save_requisites(int(user["id"]), body.currency, body.kind, body.label, value)
     return {"ok": True}
 
 

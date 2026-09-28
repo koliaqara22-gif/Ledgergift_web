@@ -86,6 +86,7 @@
       already_paid: t("already_paid"),
       deal_not_found: t("deal_not_found"),
       requisites_required: t("requisites_required"),
+      card_number_invalid: t("card_number_invalid"),
     };
     const key = (e && e.message) || "";
     return map[key] || key || t("error");
@@ -380,9 +381,16 @@
     const crypto = ["TON", "USDT"].includes(currency);
     const stars = currency === "Stars";
     const kind = crypto ? t("requisites_wallet") : (stars ? t("requisites_username") : t("requisites_card"));
-    showSheet('<button class="sheet-close" data-close>×</button><h2>' + esc(currencyLabel(currency)) + '</h2><p class="sheet-sub">' + esc(t("requisites_for") + " " + kind) + '</p><label class="fld"><span>' + esc(t("requisites_name")) + '</span><input class="field" id="reqLabel" value="' + esc(item ? item.label : "") + '" placeholder="' + esc(t("requisites_name_hint")) + '"></label><label class="fld"><span>' + esc(kind) + '</span><input class="field" id="reqValue" value="' + esc(item ? item.value : "") + '" placeholder="' + esc(stars ? "@username" : (crypto ? "UQ..." : "0000 0000 0000 0000")) + '"></label><button class="btn primary block" id="reqSave">' + esc(t("save")) + '</button>' + (item ? '<button class="btn danger block" id="reqDelete">' + esc(t("delete")) + '</button>' : ''));
+    const fiat = !crypto && !stars;
+    const savedValue = item && fiat ? String(item.value || "").replace(/\D/g, "").replace(/(.{4})/g, "$1 ").trim() : (item ? item.value : "");
+    showSheet('<button class="sheet-close" data-close>×</button><h2>' + esc(currencyLabel(currency)) + '</h2><p class="sheet-sub">' + esc(t("requisites_for") + " " + kind) + '</p><label class="fld"><span>' + esc(t("requisites_name")) + '</span><input class="field" id="reqLabel" value="' + esc(item ? item.label : "") + '" placeholder="' + esc(t("requisites_name_hint")) + '"></label><label class="fld"><span>' + esc(kind) + '</span><input class="field" id="reqValue" value="' + esc(savedValue) + '" placeholder="' + esc(stars ? "@username" : (crypto ? "UQ..." : "0000 0000 0000 0000")) + '"' + (fiat ? ' inputmode="numeric" maxlength="24"' : '') + '></label>' + (fiat ? '<p class="field-hint">' + esc(t("card_number_hint")) + '</p>' : '') + '<button class="btn primary block" id="reqSave">' + esc(t("save")) + '</button>' + (item ? '<button class="btn danger block" id="reqDelete">' + esc(t("delete")) + '</button>' : ''));
+    const reqValue = document.getElementById("reqValue");
+    if (fiat) reqValue.addEventListener("input", function () { this.value = this.value.replace(/\D/g, "").slice(0, 20).replace(/(.{4})/g, "$1 ").trim(); });
     document.getElementById("reqSave").addEventListener("click", async function () {
-      try { await api("/api/requisites", { method: "PUT", body: { currency: currency, kind: crypto ? "wallet" : (stars ? "username" : "card"), label: document.getElementById("reqLabel").value.trim(), value: document.getElementById("reqValue").value.trim() } }); toast(t("saved")); document.getElementById("sheet").remove(); routes.wallets(); } catch (e) { toast(errText(e)); }
+      const value = reqValue.value.trim();
+      const cardDigits = value.replace(/\D/g, "");
+      if (fiat && (cardDigits.length < 16 || cardDigits.length > 20)) return toast(t("card_number_invalid"));
+      try { await api("/api/requisites", { method: "PUT", body: { currency: currency, kind: crypto ? "wallet" : (stars ? "username" : "card"), label: document.getElementById("reqLabel").value.trim(), value: value } }); toast(t("saved")); document.getElementById("sheet").remove(); routes.wallets(); } catch (e) { toast(errText(e)); }
     });
     const del = document.getElementById("reqDelete"); if (del) del.addEventListener("click", async function () { try { await api("/api/requisites/" + encodeURIComponent(currency), { method: "DELETE" }); document.getElementById("sheet").remove(); routes.wallets(); } catch (e) { toast(errText(e)); } });
   }
