@@ -28,7 +28,9 @@
     crypto: '<svg viewBox="0 0 24 24"><path d="m12 3 7 9-7 9-7-9zM5 12h14M12 3v18"/></svg>',
     premium: '<svg viewBox="0 0 24 24"><path d="m4 8 4 4 4-7 4 7 4-4-2 10H6zM6 21h12"/></svg>',
     team: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0M17 5a3 3 0 0 1 0 6M20 20a5 5 0 0 0-3-4.6"/></svg>',
-    settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2 2-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-2.8v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-2-2 .1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5.6v-2.8h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2-2 .1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.8v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2 2-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1z"/></svg>'
+    settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2 2-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-2.8v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-2-2 .1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5.6v-2.8h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2-2 .1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.8v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2 2-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+    check: '<svg viewBox="0 0 24 24"><path d="m5 12 4.2 4.2L19 6.5"/></svg>',
+    send: '<svg viewBox="0 0 24 24"><path d="m21 3-8.5 18-2.3-7.2L3 11.5zM10.2 13.8 21 3"/></svg>'
   };
   function icon(name) { return '<span class="app-icon">' + (ICONS[name] || ICONS.shield) + '</span>'; }
 
@@ -64,6 +66,12 @@
     box.classList.add("show");
     clearTimeout(toast._t);
     toast._t = setTimeout(function () { box.classList.remove("show"); }, 2600);
+  }
+  function celebrate() {
+    document.body.classList.remove("success-flash");
+    void document.body.offsetWidth;
+    document.body.classList.add("success-flash");
+    setTimeout(function () { document.body.classList.remove("success-flash"); }, 720);
   }
 
   // ---- API --------------------------------------------------------------
@@ -165,7 +173,7 @@
   // =======================================================================
   // HOME
   // =======================================================================
-  routes.home = function () {
+  routes.home = async function () {
     const me = state.boot.me;
     const isAdmin = me.is_admin;
     const card = function (route, icon, label, cls) {
@@ -189,7 +197,7 @@
           '<h1 class="hero-title">' + esc(t("welcome_title")) + '</h1>' +
           '<p class="hero-sub">' + esc(t("welcome_sub")) + '</p>' +
         '</div>' +
-        '<div class="grid">' + grid + '</div>' +
+        '<div class="home-overview skeleton-block" aria-hidden="true"></div><div class="grid">' + grid + '</div>' +
       '</section>';
 
     view.querySelectorAll("[data-go]").forEach(function (b) {
@@ -197,6 +205,25 @@
     });
     const mgr = view.querySelector("[data-manager]");
     if (mgr) mgr.addEventListener("click", function () { openManager(); });
+    try {
+      const data = await api("/api/deals/history");
+      const profile = await api("/api/profile");
+      const active = (data.deals || []).filter(function (deal) { return deal.status !== "completed"; }).slice(0, 3);
+      const levelLabel = String((profile.level || {}).label || t("level")).replace(/^[^A-Za-zА-Яа-я0-9]+\s*/, "");
+      const overview = '<div class="home-overview">' +
+        '<div><small>' + esc(t("level")) + '</small><b>' + esc(levelLabel) + '</b></div>' +
+        '<div><small>' + esc(t("volume")) + '</small><b>' + esc(profile.volume_label || "0") + '</b></div>' +
+        '<div><small>' + esc(t("home_active")) + '</small><b>' + active.length + '</b></div></div>';
+      const activeHtml = active.length ? '<section class="home-active"><h3>' + esc(t("home_active")) + '</h3><div class="deal-history">' + active.map(function (deal) {
+        return '<button class="deal-history-row" data-home-deal="' + esc(deal.tag) + '"><span><b>#' + esc(deal.tag) + '</b><small>' + esc(deal.item_type_label) + '</small></span><span><b>' + esc(deal.amount_label) + ' ' + esc(deal.currency) + '</b><small>' + esc(statusLabel(deal.status)) + '</small></span></button>';
+      }).join("") + '</div></section>' : '';
+      const placeholder = view.querySelector(".home-overview");
+      if (placeholder) placeholder.outerHTML = overview + activeHtml;
+      view.querySelectorAll("[data-home-deal]").forEach(function (button) { button.addEventListener("click", function () { go("deal", button.getAttribute("data-home-deal")); }); });
+    } catch (e) {
+      const placeholder = view.querySelector(".home-overview");
+      if (placeholder) placeholder.remove();
+    }
   };
 
   function openManager() {
@@ -289,7 +316,7 @@
     return '<div class="transaction-list">' + history.map(function (h) {
       const pending = h.reason === "withdrawal_request";
       const positive = h.amount >= 0;
-      const title = labels[h.reason] || h.reason;
+      const title = pending ? t("withdraw_" + (h.withdrawal_stage || "created")) : (labels[h.reason] || h.reason);
       const detail = h.deal_tag ? t("deal_title") + ' #' + h.deal_tag : (h.created_at || "");
       const shownAmount = pending ? Math.abs(Number(h.amount)) : h.amount;
       return '<div class="transaction-row"><span class="transaction-icon ' + (pending ? 'pending' : (positive ? 'income' : 'expense')) + '">' + icon(pending ? "withdraw" : (positive ? "wallet" : "chart")) + '</span><span class="transaction-copy"><b>' + esc(title) + '</b><small>' + esc(detail) + '</small></span><b class="' + (pending ? 'pending-text' : (positive ? 'pos' : 'neg')) + '">' + (pending ? '' : (positive ? '+' : '−')) + esc(fmt(shownAmount)) + ' ' + esc(h.currency) + '</b></div>';
@@ -392,7 +419,7 @@
       const cardDigits = value.replace(/\D/g, "");
       if (fiat && (cardDigits.length < 16 || cardDigits.length > 20)) return toast(t("card_number_invalid"));
       if (stars && !/^@[A-Za-z0-9_]+$/.test(value)) return toast(t("username_invalid"));
-      try { await api("/api/requisites", { method: "PUT", body: { currency: currency, kind: crypto ? "wallet" : (stars ? "username" : "card"), label: document.getElementById("reqLabel").value.trim(), value: value } }); toast(t("saved")); document.getElementById("sheet").remove(); routes.wallets(); } catch (e) { toast(errText(e)); }
+      try { await api("/api/requisites", { method: "PUT", body: { currency: currency, kind: crypto ? "wallet" : (stars ? "username" : "card"), label: document.getElementById("reqLabel").value.trim(), value: value } }); celebrate(); toast(t("saved")); document.getElementById("sheet").remove(); routes.wallets(); } catch (e) { toast(errText(e)); }
     });
     const del = document.getElementById("reqDelete"); if (del) del.addEventListener("click", async function () { try { await api("/api/requisites/" + encodeURIComponent(currency), { method: "DELETE" }); document.getElementById("sheet").remove(); routes.wallets(); } catch (e) { toast(errText(e)); } });
   }
@@ -607,6 +634,14 @@
   // DEAL VIEW (buyer pays / confirms)
   // =======================================================================
   function statusLabel(s) { return t("st_" + s) || s; }
+  function dealTimeline(status) {
+    const steps = ["created", "paid", "transferred", "completed"];
+    const current = Math.max(0, steps.indexOf(status));
+    return '<div class="deal-timeline">' + steps.map(function (step, index) {
+      const cls = index < current ? "done" : (index === current ? "current" : "");
+      return '<div class="timeline-step ' + cls + '"><span>' + icon(index <= current ? "check" : "clock") + '</span><small>' + esc(t("timeline_" + step)) + '</small></div>';
+    }).join("") + '</div>';
+  }
 
   routes.deal = async function (tag) {
     setActiveTab("");
@@ -640,17 +675,18 @@
           row(t("seller"), "@" + deal.seller_username) +
           row(t("buyer"), "@" + deal.buyer_username) +
         '</div>' +
+        dealTimeline(deal.status) +
         '<div class="deal-actions">' + actions + '</div>' +
       '</section>';
 
     const pay = document.getElementById("payBtn");
     if (pay) pay.addEventListener("click", async function () {
-      try { await api("/api/deal/" + deal.tag + "/pay", { method: "POST" }); toast(t("paid_ok")); routes.deal(deal.tag); }
+      try { await api("/api/deal/" + deal.tag + "/pay", { method: "POST" }); celebrate(); toast(t("paid_ok")); routes.deal(deal.tag); }
       catch (e) { toast(errText(e)); }
     });
     const yes = document.getElementById("yesBtn");
     if (yes) yes.addEventListener("click", async function () {
-      try { await api("/api/deal/" + deal.tag + "/receipt", { method: "POST", body: { received: true } }); toast(t("completed_ok")); routes.deal(deal.tag); }
+      try { await api("/api/deal/" + deal.tag + "/receipt", { method: "POST", body: { received: true } }); celebrate(); toast(t("completed_ok")); routes.deal(deal.tag); }
       catch (e) { toast(errText(e)); }
     });
     const no = document.getElementById("noBtn");
@@ -817,8 +853,9 @@
         panel.querySelectorAll("[data-active-deal]").forEach(function (button) { button.addEventListener("click", function () { showDealWorkspace(button.getAttribute("data-active-deal")); }); });
       };
       panel.innerHTML = '<div class="active-summary"><button class="active-stat" data-active-filter="created"><b>' + data.summary.created + '</b><small>' + esc(t("adm_wait_payment")) + '</small></button>' +
-        '<button class="active-stat paid" data-active-filter="paid"><b>' + data.summary.paid + '</b><small>' + esc(t("adm_wait_item")) + '</small></button></div>' +
-        '<div class="active-filter"><button class="seg active" data-active-filter="all">' + esc(t("adm_all_active")) + '</button><button class="seg" data-active-filter="created">' + esc(t("adm_wait_payment")) + '</button><button class="seg" data-active-filter="paid">' + esc(t("adm_wait_item")) + '</button></div><div id="activeRows"></div>';
+        '<button class="active-stat paid" data-active-filter="paid"><b>' + data.summary.paid + '</b><small>' + esc(t("adm_wait_item")) + '</small></button>' +
+        '<button class="active-stat transferred" data-active-filter="transferred"><b>' + data.summary.transferred + '</b><small>' + esc(t("adm_wait_confirm")) + '</small></button></div>' +
+        '<div class="active-filter"><button class="seg active" data-active-filter="all">' + esc(t("adm_all_active")) + '</button><button class="seg" data-active-filter="created">' + esc(t("adm_wait_payment")) + '</button><button class="seg" data-active-filter="paid">' + esc(t("adm_wait_item")) + '</button><button class="seg" data-active-filter="transferred">' + esc(t("adm_wait_confirm")) + '</button></div><div id="activeRows"></div>';
       panel.querySelectorAll("[data-active-filter]").forEach(function (button) { button.addEventListener("click", function () { render(button.getAttribute("data-active-filter")); }); });
       render("all");
     } catch (e) { panel.innerHTML = '<p class="neg">' + esc(errText(e)) + '</p>'; }
@@ -839,6 +876,8 @@
           '<label class="fld"><span>' + esc(t("adm_assign")) + '</span><select class="field" id="workspaceMember">' + options + '</select></label>' +
           '<label class="fld"><span>' + esc(t("adm_note")) + '</span><textarea class="field workspace-note" id="workspaceNote" maxlength="300" placeholder="' + esc(t("adm_note_hint")) + '">' + esc(workspace.note || "") + '</textarea></label>' +
           '<button class="btn primary block" id="workspaceSave">' + esc(t("adm_save_workspace")) + '</button></div>' +
+        (deal.status === "paid" ? '<button class="btn primary block" id="markTransferred">' + icon("check") + esc(t("adm_mark_transferred")) + '</button>' : '') +
+        ((deal.status === "paid" || deal.status === "transferred") ? '<button class="btn ghost block" id="sendPaidNotice">' + icon("send") + esc(t("adm_send_paid_notice")) + '</button>' : '') +
         '<button class="btn ghost block" id="openDeal">' + esc(t("adm_open_deal")) + '</button>';
       document.getElementById("backToDeals").addEventListener("click", showActiveDeals);
       document.getElementById("openDeal").addEventListener("click", function () { go("deal", deal.tag); });
@@ -849,8 +888,18 @@
             assigned_admin_id: selected ? parseInt(selected, 10) : null,
             note: document.getElementById("workspaceNote").value.trim()
           } });
-          toast(t("done")); showDealWorkspace(deal.tag);
+          celebrate(); toast(t("done")); showDealWorkspace(deal.tag);
         } catch (e) { toast(errText(e)); }
+      });
+      const transferred = document.getElementById("markTransferred");
+      if (transferred) transferred.addEventListener("click", async function () {
+        try { await api("/api/admin/deal/" + encodeURIComponent(deal.tag) + "/transferred", { method: "POST" }); celebrate(); toast(t("adm_transferred_ok")); showDealWorkspace(deal.tag); }
+        catch (e) { toast(errText(e)); }
+      });
+      const notice = document.getElementById("sendPaidNotice");
+      if (notice) notice.addEventListener("click", async function () {
+        try { await api("/api/admin/deal/" + encodeURIComponent(deal.tag) + "/notify-paid", { method: "POST" }); toast(t("adm_paid_notice_sent")); }
+        catch (e) { toast(errText(e)); }
       });
     } catch (e) { panel.innerHTML = '<p class="neg">' + esc(errText(e)) + '</p>'; }
   }

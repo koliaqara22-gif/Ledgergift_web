@@ -336,6 +336,13 @@ def balance_history(user_id: int, limit: int = 10) -> list[dict]:
         rows = connection.execute(
             """
             SELECT amount, currency, operation, reason, deal_tag,
+                   CASE WHEN reason = 'withdrawal_request' THEN
+                     CASE
+                       WHEN created_at >= datetime('now', '-1 minute') THEN 'created'
+                       WHEN created_at >= datetime('now', '-5 minutes') THEN 'checking'
+                       ELSE 'sending'
+                     END
+                   ELSE NULL END AS withdrawal_stage,
                    datetime(created_at, '+3 hours') AS created_at
             FROM balance_history
             WHERE user_id = ?
@@ -468,7 +475,7 @@ def pay_deal_from_balance(tag: str, user_id: int) -> tuple[bool, str]:
         row = connection.execute("SELECT * FROM deals WHERE tag = ?", (tag,)).fetchone()
         if not row:
             return False, "deal_not_found"
-        if row["status"] == "paid":
+        if row["status"] != "created":
             return False, "already_paid"
         amount = float(row["amount"])
         current = get_balance(user_id, row["currency"])
@@ -490,7 +497,7 @@ def release_deal_to_seller(tag: str) -> tuple[bool, str, Deal | None]:
         return False, "deal_not_found", None
     if deal.status == "completed":
         return False, "already_completed", deal
-    if deal.status != "paid":
+    if deal.status != "transferred":
         return False, "not_paid", deal
     add_balance(deal.seller_id, deal.amount, deal.currency, reason="deal_release", deal_tag=deal.tag)
     increment_success_orders(deal.seller_id, deal.amount)
@@ -498,6 +505,21 @@ def release_deal_to_seller(tag: str) -> tuple[bool, str, Deal | None]:
         connection.execute("UPDATE deals SET status = 'completed' WHERE tag = ?", (tag,))
         connection.commit()
     return True, "ok", deal
+
+
+def mark_deal_transferred(tag: str) -> tuple[bool, str, Deal | None]:
+    """Marks that the NFT has been handed over and can be confirmed by buyer."""
+    deal = find_deal(tag)
+    if not deal:
+        return False, "deal_not_found", None
+    if deal.status == "transferred":
+        return False, "already_transferred", deal
+    if deal.status != "paid":
+        return False, "not_paid", deal
+    with closing(db()) as connection:
+        connection.execute("UPDATE deals SET status = 'transferred' WHERE tag = ?", (tag,))
+        connection.commit()
+    return True, "ok", find_deal(tag)
 
 
 # ---------------------------------------------------------------------------
@@ -607,8 +629,8 @@ def active_deals(limit: int = 40) -> list[Deal]:
         rows = connection.execute(
             """SELECT tag, seller_id, seller_username, buyer_username, item_type, item_link,
                       amount, currency, stars_count, status
-               FROM deals WHERE status IN ('created', 'paid')
-               ORDER BY CASE status WHEN 'paid' THEN 0 ELSE 1 END, created_at DESC LIMIT ?""",
+               FROM deals WHERE status IN ('created', 'paid', 'transferred')
+               ORDER BY CASE status WHEN 'transferred' THEN 0 WHEN 'paid' THEN 1 ELSE 2 END, created_at DESC LIMIT ?""",
             (limit,),
         ).fetchall()
     return [Deal(**dict(row)) for row in rows]
@@ -617,10 +639,10 @@ def active_deals(limit: int = 40) -> list[Deal]:
 def active_deal_summary() -> dict:
     with closing(db()) as connection:
         rows = connection.execute(
-            "SELECT status, COUNT(*) AS count FROM deals WHERE status IN ('created', 'paid') GROUP BY status"
+            "SELECT status, COUNT(*) AS count FROM deals WHERE status IN ('created', 'paid', 'transferred') GROUP BY status"
         ).fetchall()
     counts = {row["status"]: int(row["count"]) for row in rows}
-    return {"created": counts.get("created", 0), "paid": counts.get("paid", 0)}
+    return {"created": counts.get("created", 0), "paid": counts.get("paid", 0), "transferred": counts.get("transferred", 0)}
 
 
 def deal_workspaces(tags: list[str]) -> dict[str, dict]:

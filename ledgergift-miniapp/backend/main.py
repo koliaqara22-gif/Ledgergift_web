@@ -329,7 +329,7 @@ def _deal_view(deal: db.Deal, user: dict, lang: str) -> dict:
             "is_seller": is_seller,
             "is_staff": staff,
             "can_pay": (is_buyer or staff) and deal.status == "created",
-            "can_confirm": (is_buyer or staff) and deal.status == "paid",
+            "can_confirm": (is_buyer or staff) and deal.status == "transferred",
         },
         "support_username": SUPPORT_USERNAME,
     }
@@ -382,6 +382,26 @@ async def confirm_receipt(tag: str, body: ReceiptIn, user: dict = Depends(curren
         raise HTTPException(status_code=400, detail=reason)
     await notify_completed_deal(deal, uid)
     return {"ok": True, "deal": deal_public(deal, db.get_user_lang(uid))}
+
+
+@app.post("/api/admin/deal/{tag}/transferred")
+async def admin_mark_deal_transferred(tag: str, user: dict = Depends(current_admin)) -> dict:
+    ok, reason, deal = db.mark_deal_transferred(tag.lstrip("#").upper())
+    if not ok:
+        raise HTTPException(status_code=400, detail=reason)
+    return {"ok": True, "deal": deal_public(deal, db.get_user_lang(int(user["id"])))}
+
+
+@app.post("/api/admin/deal/{tag}/notify-paid")
+async def admin_notify_paid_deal(tag: str, user: dict = Depends(current_admin)) -> dict:
+    """Re-send the same complete paid-deal notification the bot sends to seller."""
+    deal = db.find_deal(tag.lstrip("#").upper())
+    if not deal:
+        raise HTTPException(status_code=404, detail="deal not found")
+    if deal.status not in ("paid", "transferred"):
+        raise HTTPException(status_code=400, detail="not_paid")
+    await notify_paid_deal(deal)
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------
