@@ -978,7 +978,10 @@
   });
   document.getElementById("themeLight").addEventListener("click", function () { localStorage.setItem("lg-theme", "light"); applyTheme(); haptic(); });
   document.getElementById("themeDark").addEventListener("click", function () { localStorage.setItem("lg-theme", "dark"); applyTheme(); haptic(); });
-  document.getElementById("themeMore").addEventListener("click", function () { appThemeSheet(); });
+  const themeMore = document.getElementById("themeMore");
+  // Telegram can briefly mix a cached HTML shell with a newer script after a
+  // deployment. Keep the app bootable even if the new palette button is absent.
+  if (themeMore) themeMore.addEventListener("click", function () { appThemeSheet(); });
   function appThemeSheet() {
     const themes = [["light", t("theme_light")], ["dark", t("theme_dark")], ["aurora", t("theme_aurora")], ["sunset", t("theme_sunset")], ["midnight", t("theme_midnight")]];
     showSheet('<button class="sheet-close" data-close>×</button><h2>' + esc(t("app_theme")) + '</h2><div class="app-theme-grid">' + themes.map(function (item) { return '<button class="app-theme-choice app-theme-' + item[0] + '" data-app-theme="' + item[0] + '"><span></span><b>' + esc(item[1]) + '</b></button>'; }).join("") + '</div>');
