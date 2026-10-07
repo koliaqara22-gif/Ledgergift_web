@@ -18,6 +18,10 @@ BOT_USERNAME = os.getenv("BOT_USERNAME", "").lstrip("@")
 MINIAPP_SHORT_NAME = os.getenv("MINIAPP_SHORT_NAME", "app")
 # Public https URL where the frontend is served (used for the menu button).
 WEBAPP_URL = os.getenv("WEBAPP_URL", "").rstrip("/")
+# Changes whenever the Mini App front-end is released. Telegram's mobile
+# WebView can cache an unchanged URL for a long time, so the bot appends this
+# token to every Web App launch URL.
+WEBAPP_VERSION = os.getenv("WEBAPP_VERSION", "20261008b")
 
 SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "LedgerGiftManager").lstrip("@")
 PAYMENT_URL = os.getenv("PAYMENT_URL", f"https://t.me/{SUPPORT_USERNAME}")

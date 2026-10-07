@@ -40,6 +40,7 @@ from config import (
     MINIAPP_SHORT_NAME,
     SUPPORT_USERNAME,
     WEBAPP_URL,
+    WEBAPP_VERSION,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
@@ -65,7 +66,7 @@ WELCOME = {
 
 def open_app_keyboard(start_param: str = "", lang: str = "ru") -> InlineKeyboardMarkup:
     # A Web App button opens the Mini App directly inside the chat.
-    url = WEBAPP_URL
+    url = versioned_webapp_url()
     if start_param:
         # startapp payload is passed through when opening via the direct link;
         # for the in-chat Web App button we append it as a query param that the
@@ -79,6 +80,14 @@ def open_app_keyboard(start_param: str = "", lang: str = "ru") -> InlineKeyboard
             [InlineKeyboardButton(text=words[3], url=f"https://t.me/{SUPPORT_USERNAME}")],
         ]
     )
+
+
+def versioned_webapp_url() -> str:
+    """Give Telegram WebView a new cache key for every front-end release."""
+    if not WEBAPP_URL:
+        return ""
+    sep = "&" if "?" in WEBAPP_URL else "?"
+    return f"{WEBAPP_URL}{sep}v={WEBAPP_VERSION}"
 
 
 def language_keyboard(start_param: str) -> InlineKeyboardMarkup:
@@ -162,7 +171,7 @@ async def setup_commands(bot: Bot) -> None:
 async def setup_menu_button(bot: Bot) -> None:
     if WEBAPP_URL:
         await bot.set_chat_menu_button(
-            menu_button=MenuButtonWebApp(text=BRAND_NAME, web_app=WebAppInfo(url=WEBAPP_URL))
+            menu_button=MenuButtonWebApp(text=BRAND_NAME, web_app=WebAppInfo(url=versioned_webapp_url()))
         )
 
 

@@ -32,6 +32,16 @@ from helpers import money, public_name, seller_level
 
 app = FastAPI(title="LedgerGift Mini App API")
 
+
+@app.middleware("http")
+async def prevent_mobile_webview_cache(request, call_next):
+    """Keep Telegram mobile from serving an obsolete app shell after deploys."""
+    response = await call_next(request)
+    if request.url.path in ("/", "/index.html", "/app.js", "/style.css", "/i18n.js"):
+        response.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
 NOTIFY = {
     "ru": {"paid": "💳 <b>{brand}: сделка оплачена</b>", "paid_body": "Заказ <code>#{tag}</code> оплачен на <b>{amount} {currency}</b>.\nСтатус: <b>ждёт передачи товара</b>.\n\nПередайте товар через менеджера @{support}.", "done": "✅ <b>{brand}: сделка завершена</b>", "done_body": "Заказ <code>#{tag}</code> подтверждён.\nСумма: <b>{amount} {currency}</b>"},
     "en": {"paid": "💳 <b>{brand}: deal paid</b>", "paid_body": "Order <code>#{tag}</code> was paid: <b>{amount} {currency}</b>.\nStatus: <b>waiting for item transfer</b>.\n\nTransfer the item through @{support}.", "done": "✅ <b>{brand}: deal completed</b>", "done_body": "Order <code>#{tag}</code> was confirmed.\nAmount: <b>{amount} {currency}</b>"},
