@@ -147,17 +147,37 @@
   }
 
   function applyTheme() {
-    const light = localStorage.getItem("lg-theme") === "light";
+    const selected = localStorage.getItem("lg-theme") || "light";
+    const light = selected === "light";
     document.body.classList.toggle("light-theme", light);
+    document.body.classList.remove("theme-dark", "theme-aurora", "theme-sunset", "theme-midnight");
+    if (!light) document.body.classList.add("theme-" + selected);
     const lightButton = document.getElementById("themeLight");
     const darkButton = document.getElementById("themeDark");
     if (lightButton) lightButton.classList.toggle("active", light);
     if (darkButton) darkButton.classList.toggle("active", !light);
-    if (!tg) return;
     try {
-      tg.setHeaderColor && tg.setHeaderColor("#000000");
-      tg.setBackgroundColor && tg.setBackgroundColor("#0a0a0c");
+      tg && tg.setHeaderColor && tg.setHeaderColor(light ? "#f8f9ff" : "#090d18");
+      tg && tg.setBackgroundColor && tg.setBackgroundColor(light ? "#f2f3f8" : "#090d18");
     } catch (e) {}
+  }
+
+  function updateDeviceStatus() {
+    const target = document.getElementById("deviceTime");
+    if (target) target.textContent = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date());
+  }
+  function initDeviceStatus() {
+    updateDeviceStatus();
+    setInterval(updateDeviceStatus, 30000);
+    if (!navigator.getBattery) return;
+    navigator.getBattery().then(function (battery) {
+      const renderBattery = function () {
+        const level = document.getElementById("batteryLevel");
+        if (level) level.textContent = Math.round(battery.level * 100);
+      };
+      renderBattery();
+      battery.addEventListener("levelchange", renderBattery);
+    }).catch(function () {});
   }
 
   function renderAdminTab() {
@@ -440,7 +460,7 @@
       const dealRows = deals.deals.length ? deals.deals.map(function (d) { return '<button class="deal-history-row" data-deal="' + esc(d.tag) + '"><span><b>#' + esc(d.tag) + '</b><small>' + esc(d.item_type_label) + '</small></span><span><b>' + esc(d.amount_label) + ' ' + esc(d.currency) + '</b><small>' + esc(statusLabel(d.status)) + '</small></span></button>'; }).join("") : '<p class="muted">' + esc(t("history_empty")) + '</p>';
       view.innerHTML =
         '<section class="pad fade">' + header(t("profile_title"), icon("user")) +
-          '<div class="profile-card theme-' + esc(cardTheme) + '" id="profileCard"><span class="card-brand">LedgerGift</span><button class="card-palette" id="cardPalette" aria-label="card color"><span></span></button><div class="pf-avatar">' + esc((p.username || "?").charAt(0).toUpperCase()) + '</div><div class="pf-name">' + esc(displayName) + '</div><div class="pf-user">' + esc(uname) + '</div><small>' + esc(t("total_balance")) + '</small><strong>' + esc(fmt(total)) + '</strong></div>' +
+          '<div class="profile-card theme-' + esc(cardTheme) + '" id="profileCard"><div class="card-brand">LedgerGift <span>PRIVATE</span></div><button class="card-palette" id="cardPalette" aria-label="card color"><span></span></button><div class="card-chip" aria-hidden="true"></div><div class="pf-person"><div class="pf-avatar">' + esc((p.username || "?").charAt(0).toUpperCase()) + '</div><div><div class="pf-name">' + esc(displayName) + '</div><div class="pf-user">' + esc(uname) + '</div></div></div><small>' + esc(t("volume")) + '</small><strong>' + esc(fmt(p.volume || 0)) + '</strong><div class="card-footer"><span>LEDGERGIFT • SECURE DEALS</span><b>' + esc(p.orders || 0) + ' ' + esc(t("orders_word")) + '</b></div></div>' +
           '<div class="profile-actions"><button class="profile-action active" id="profileWallets">' + icon("wallet") + esc(t("wallets")) + '</button><button class="profile-action" id="profileLang">' + icon("globe") + esc(t("a_language")) + '</button></div>' +
           '<h3 class="subhead">' + esc(t("deal_title")) + '</h3><div class="deal-history">' + dealRows + '</div>' +
         '</section>';
@@ -958,6 +978,13 @@
   });
   document.getElementById("themeLight").addEventListener("click", function () { localStorage.setItem("lg-theme", "light"); applyTheme(); haptic(); });
   document.getElementById("themeDark").addEventListener("click", function () { localStorage.setItem("lg-theme", "dark"); applyTheme(); haptic(); });
+  document.getElementById("themeMore").addEventListener("click", function () { appThemeSheet(); });
+  function appThemeSheet() {
+    const themes = [["light", t("theme_light")], ["dark", t("theme_dark")], ["aurora", t("theme_aurora")], ["sunset", t("theme_sunset")], ["midnight", t("theme_midnight")]];
+    showSheet('<button class="sheet-close" data-close>×</button><h2>' + esc(t("app_theme")) + '</h2><div class="app-theme-grid">' + themes.map(function (item) { return '<button class="app-theme-choice app-theme-' + item[0] + '" data-app-theme="' + item[0] + '"><span></span><b>' + esc(item[1]) + '</b></button>'; }).join("") + '</div>');
+    document.querySelectorAll("[data-app-theme]").forEach(function (button) { button.addEventListener("click", function () { localStorage.setItem("lg-theme", button.getAttribute("data-app-theme")); document.getElementById("sheet").remove(); applyTheme(); haptic(); }); });
+  }
+  initDeviceStatus();
   document.getElementById("homeBtn").addEventListener("click", function () { haptic(); go("home"); });
 
   boot();
