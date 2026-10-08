@@ -208,13 +208,13 @@
     };
     let grid = "";
     grid += card("create", icon("gift"), t("a_create"), "accent span2");
+    grid += card("how", icon("shield"), t("how_title"), "how-card span2");
     grid += card("balance", icon("wallet"), t("a_balance"));
     grid += card("security", icon("shield"), t("a_security"));
     grid += card("top", icon("trophy"), t("a_top"));
     grid += card("profile", icon("user"), t("a_profile"));
     grid += '<button class="grid-card" data-manager><span class="gc-ic">' + icon("chat") + '</span><span class="gc-lbl">' + esc(t("a_manager")) + '</span></button>';
     grid += card("language", icon("globe"), t("a_language"));
-    grid += card("how", icon("shield"), t("how_title"));
     if (isAdmin) grid += card("admin", icon("shield"), t("a_admin"), "admin-card span2");
 
     view.innerHTML =
