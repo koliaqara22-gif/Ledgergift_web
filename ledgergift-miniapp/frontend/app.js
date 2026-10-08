@@ -352,7 +352,7 @@
           '<div class="currency-balance-label">' + esc(t("balance_title")) + '</div>' +
           '<strong>' + esc(fmt(amount)) + '<small>' + esc(selected) + '</small></strong>' +
           '<div class="currency-showcase-foot"><span>LEDGERGIFT • SECURE WALLET</span><i class="card-chip" aria-hidden="true"></i></div>' +
-        '</article>' +
+        '</article>' + currencyDots(currencies, selected, "currency-dot") +
         '<div class="wallet-actions currency-actions">' +
           '<button class="btn primary" data-act="topup">' + icon("wallet") + esc(t("b_topup")) + '</button>' +
           '<button class="btn ghost" data-act="withdraw">' + icon("withdraw") + esc(t("b_withdraw")) + '</button>' +
@@ -362,6 +362,8 @@
     view.querySelectorAll("[data-currency-card]").forEach(function (button) {
       button.addEventListener("click", function () { const currency = button.getAttribute("data-currency-card"); localStorage.setItem("lg-currency-card", currency); renderCurrencyBalance(data, currency); });
     });
+    view.querySelectorAll("[data-currency-dot]").forEach(function (button) { button.addEventListener("click", function () { const currency = button.getAttribute("data-currency-dot"); localStorage.setItem("lg-currency-card", currency); renderCurrencyBalance(data, currency); }); });
+    bindCardSwipe(view.querySelector(".currency-showcase"), currencies, selected, function (currency) { localStorage.setItem("lg-currency-card", currency); renderCurrencyBalance(data, currency); });
     bindCurrencyRail(view.querySelector(".currency-tabs"));
     view.querySelector('[data-act="withdraw"]').addEventListener("click", function () { withdrawSheet(data.balances); });
     view.querySelector('[data-act="topup"]').addEventListener("click", function () { go("wallets"); });
@@ -376,6 +378,27 @@
         rail.scrollLeft += event.deltaY;
       }
     }, { passive: false });
+  }
+
+  function currencyDots(currencies, selected, attrName) {
+    return '<div class="currency-dots" aria-label="currency pages">' + currencies.map(function (currency) {
+      return '<button class="currency-dot' + (currency === selected ? ' active' : '') + '" data-' + attrName + '="' + esc(currency) + '" aria-label="' + esc(currencyLabel(currency)) + '"></button>';
+    }).join("") + '</div>';
+  }
+
+  function bindCardSwipe(card, currencies, selected, onSelect) {
+    if (!card) return;
+    let startX = null;
+    card.addEventListener("touchstart", function (event) { startX = event.touches[0].clientX; }, { passive: true });
+    card.addEventListener("touchend", function (event) {
+      if (startX === null) return;
+      const delta = event.changedTouches[0].clientX - startX;
+      startX = null;
+      if (Math.abs(delta) < 36) return;
+      const current = Math.max(0, currencies.indexOf(selected));
+      const next = delta < 0 ? Math.min(currencies.length - 1, current + 1) : Math.max(0, current - 1);
+      if (next !== current) onSelect(currencies[next]);
+    }, { passive: true });
   }
 
   routes.balance = async function () {
@@ -428,11 +451,13 @@
         view.innerHTML = '<section class="pad fade">' + header(t("wallets"), icon("wallet")) +
           (data.enabled ? '<div class="wallet-intro">' + esc(t("wallets_hint")) + '</div>' : '<div class="card neg">' + esc(t("requisites_unavailable")) + '</div>') +
           '<div class="currency-tabs" role="tablist">' + tabs + '</div>' +
-          '<article class="currency-showcase currency-' + esc(String(selected).toLowerCase()) + '"><i class="currency-orbit orbit-one"></i><i class="currency-orbit orbit-two"></i><div class="currency-showcase-head"><span class="currency-showcase-name">' + currencyIcon(selected) + '<b>' + esc(currencyLabel(selected)) + '</b></span><span>LedgerGift</span></div><div class="currency-balance-label">' + esc(t("current_balance")) + '</div><strong>' + esc(fmt(amount)) + '<small>' + esc(selected) + '</small></strong><div class="currency-showcase-foot"><span>' + esc(item ? t("requisites_saved") : t("requisites_empty")) + '</span><i class="card-chip" aria-hidden="true"></i></div></article>' +
+          '<article class="currency-showcase currency-' + esc(String(selected).toLowerCase()) + '"><i class="currency-orbit orbit-one"></i><i class="currency-orbit orbit-two"></i><div class="currency-showcase-head"><span class="currency-showcase-name">' + currencyIcon(selected) + '<b>' + esc(currencyLabel(selected)) + '</b></span><span>LedgerGift</span></div><div class="currency-balance-label">' + esc(t("current_balance")) + '</div><strong>' + esc(fmt(amount)) + '<small>' + esc(selected) + '</small></strong><div class="currency-showcase-foot"><span>' + esc(item ? t("requisites_saved") : t("requisites_empty")) + '</span><i class="card-chip" aria-hidden="true"></i></div></article>' + currencyDots(currencies, selected, "wallet-dot") +
           (data.enabled ? '<button class="btn primary block wallet-requisite-btn" data-add-requisites>' + esc(item ? t("wallets") : t("how_requisites")) + '</button>' : '') +
           '</section>';
         bindCurrencyRail(view.querySelector(".currency-tabs"));
         view.querySelectorAll("[data-wallet-currency]").forEach(function (button) { button.addEventListener("click", function () { const currency = button.getAttribute("data-wallet-currency"); localStorage.setItem("lg-wallet-card", currency); renderWalletDeck(currency); }); });
+        view.querySelectorAll("[data-wallet-dot]").forEach(function (button) { button.addEventListener("click", function () { const currency = button.getAttribute("data-wallet-dot"); localStorage.setItem("lg-wallet-card", currency); renderWalletDeck(currency); }); });
+        bindCardSwipe(view.querySelector(".currency-showcase"), currencies, selected, function (currency) { localStorage.setItem("lg-wallet-card", currency); renderWalletDeck(currency); });
         const add = view.querySelector("[data-add-requisites]");
         if (add) add.addEventListener("click", function () { requisitesSheet(selected, item || null, amount); });
       };
