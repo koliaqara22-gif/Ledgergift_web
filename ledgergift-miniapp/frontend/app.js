@@ -153,11 +153,13 @@
   }
 
   function applyTheme() {
-    const selected = localStorage.getItem("lg-theme") || "light";
+    const savedTheme = localStorage.getItem("lg-theme") || "light";
+    const selected = savedTheme === "dark" ? "dark" : "light";
+    if (savedTheme !== selected) localStorage.setItem("lg-theme", selected);
     const light = selected === "light";
     document.body.classList.toggle("light-theme", light);
     document.body.classList.remove("theme-dark", "theme-aurora", "theme-sunset", "theme-midnight");
-    if (!light) document.body.classList.add("theme-" + selected);
+    if (!light) document.body.classList.add("theme-dark");
     const lightButton = document.getElementById("themeLight");
     const darkButton = document.getElementById("themeDark");
     if (lightButton) lightButton.classList.toggle("active", light);
@@ -168,23 +170,6 @@
     } catch (e) {}
   }
 
-  function updateDeviceStatus() {
-    const target = document.getElementById("deviceTime");
-    if (target) target.textContent = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date());
-  }
-  function initDeviceStatus() {
-    updateDeviceStatus();
-    setInterval(updateDeviceStatus, 30000);
-    if (!navigator.getBattery) return;
-    navigator.getBattery().then(function (battery) {
-      const renderBattery = function () {
-        const level = document.getElementById("batteryLevel");
-        if (level) level.textContent = Math.round(battery.level * 100);
-      };
-      renderBattery();
-      battery.addEventListener("levelchange", renderBattery);
-    }).catch(function () {});
-  }
 
   function renderAdminTab() {
     // The Admin entry only exists in the DOM for admins.
@@ -1050,16 +1035,6 @@
   });
   document.getElementById("themeLight").addEventListener("click", function () { localStorage.setItem("lg-theme", "light"); applyTheme(); haptic(); });
   document.getElementById("themeDark").addEventListener("click", function () { localStorage.setItem("lg-theme", "dark"); applyTheme(); haptic(); });
-  const themeMore = document.getElementById("themeMore");
-  // Telegram can briefly mix a cached HTML shell with a newer script after a
-  // deployment. Keep the app bootable even if the new palette button is absent.
-  if (themeMore) themeMore.addEventListener("click", function () { appThemeSheet(); });
-  function appThemeSheet() {
-    const themes = [["light", t("theme_light")], ["dark", t("theme_dark")], ["aurora", t("theme_aurora")], ["sunset", t("theme_sunset")], ["midnight", t("theme_midnight")]];
-    showSheet('<button class="sheet-close" data-close>×</button><h2>' + esc(t("app_theme")) + '</h2><div class="app-theme-grid">' + themes.map(function (item) { return '<button class="app-theme-choice app-theme-' + item[0] + '" data-app-theme="' + item[0] + '"><span></span><b>' + esc(item[1]) + '</b></button>'; }).join("") + '</div>');
-    document.querySelectorAll("[data-app-theme]").forEach(function (button) { button.addEventListener("click", function () { localStorage.setItem("lg-theme", button.getAttribute("data-app-theme")); document.getElementById("sheet").remove(); applyTheme(); haptic(); }); });
-  }
-  initDeviceStatus();
   document.getElementById("homeBtn").addEventListener("click", function () { haptic(); go("home"); });
 
   boot();
