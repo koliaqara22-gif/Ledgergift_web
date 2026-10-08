@@ -365,7 +365,7 @@
     view.querySelectorAll("[data-currency-dot]").forEach(function (button) { button.addEventListener("click", function () { const currency = button.getAttribute("data-currency-dot"); localStorage.setItem("lg-currency-card", currency); renderCurrencyBalance(data, currency); }); });
     bindCardSwipe(view.querySelector(".currency-showcase"), currencies, selected, function (currency) { localStorage.setItem("lg-currency-card", currency); renderCurrencyBalance(data, currency); });
     bindCurrencyRail(view.querySelector(".currency-tabs"));
-    view.querySelector('[data-act="withdraw"]').addEventListener("click", function () { withdrawSheet(data.balances); });
+    view.querySelector('[data-act="withdraw"]').addEventListener("click", function () { withdrawSheet(data.balances, selected); });
     view.querySelector('[data-act="topup"]').addEventListener("click", function () { go("wallets"); });
     view.querySelector('[data-act="transactions"]').addEventListener("click", function () { transactionsSheet(data.history); });
   }
@@ -413,25 +413,39 @@
     showSheet('<button class="sheet-close" data-close>×</button><h2>' + esc(t("transactions")) + '</h2><p class="sheet-sub">' + esc(t("transactions_hint")) + '</p>' + transactionList(history));
   }
 
-  async function withdrawSheet(balances) {
+  async function withdrawSheet(balances, initialCurrency) {
     let requisites = {};
     try { const data = await api("/api/requisites"); requisites = data.items || {}; } catch (e) {}
-    const options = state.boot.currencies.map(function (currency) { return '<option value="' + currency + '">' + esc(currencyLabel(currency)) + ' · ' + esc(fmt(balances[currency] || 0)) + '</option>'; }).join("");
-    showSheet('<button class="sheet-close" data-close>×</button><h2>' + esc(t("b_withdraw")) + '</h2><div class="wallet-amount"><small>' + esc(t("withdraw_available")) + '</small><b id="withdrawAvailable"></b></div><label class="fld"><span>' + esc(t("step_currency")) + '</span><select class="field" id="withdrawCurrency">' + options + '</select></label><label class="fld"><span>' + esc(t("amount")) + '</span><input class="field" id="withdrawAmount" type="number" inputmode="decimal" placeholder="0.00"></label><p class="sheet-sub" id="withdrawDestination"></p><button class="btn primary block" id="withdrawSubmit">' + esc(t("withdraw_request")) + '</button>');
-    const currency = document.getElementById("withdrawCurrency");
-    const update = function () { const c = currency.value; document.getElementById("withdrawAvailable").textContent = fmt(balances[c] || 0) + ' ' + c; const item = requisites[c]; document.getElementById("withdrawDestination").textContent = item ? t("withdraw_to") + ': ' + (item.label || item.kind) : t("withdraw_no_requisites"); };
-    currency.addEventListener("change", update); update();
-    document.getElementById("withdrawSubmit").addEventListener("click", async function () {
-      const amount = parseFloat(document.getElementById("withdrawAmount").value.replace(",", "."));
-      const c = currency.value;
-      if (!(amount > 0) || amount > Number(balances[c] || 0)) return toast(t("withdraw_invalid"));
-      if (!requisites[c]) return toast(t("withdraw_no_requisites"));
-      try {
-        await api("/api/balance/withdraw", { method: "POST", body: { currency: c, amount: amount } });
-        document.getElementById("sheet").remove();
-        routes.balance();
-      } catch (e) { toast(errText(e)); }
-    });
+    const currencies = state.boot.currencies || [];
+    const draw = function (selectedCurrency) {
+      const currency = currencies.indexOf(selectedCurrency) >= 0 ? selectedCurrency : (currencies[0] || "TON");
+      const item = requisites[currency] || null;
+      const available = Number(balances[currency] || 0);
+      const crypto = ["TON", "USDT"].includes(currency), stars = currency === "Stars", fiat = !crypto && !stars;
+      const kind = crypto ? t("requisites_wallet") : (stars ? t("requisites_username") : t("requisites_card"));
+      const raw = item ? item.value : "";
+      const digits = String(raw).replace(/\D/g, "");
+      const preview = fiat ? (digits ? "•••• " + digits.slice(-4) : "•••• •••• •••• ••••") : (raw || (stars ? "@username" : "UQ…"));
+      const tabs = currencies.map(function (c) { return '<button class="currency-tab' + (c === currency ? ' active' : '') + '" data-withdraw-currency="' + esc(c) + '">' + currencyIcon(c) + '<span>' + esc(currencyLabel(c)) + '</span></button>'; }).join("");
+      const old = document.getElementById("sheet"); if (old) old.remove();
+      showSheet('<button class="sheet-close" data-close>×</button><div class="withdraw-screen"><div class="currency-tabs" role="tablist">' + tabs + '</div><article class="withdraw-hero currency-' + esc(String(currency).toLowerCase()) + '"><i class="currency-orbit orbit-one"></i><i class="currency-orbit orbit-two"></i><div class="withdraw-hero-head">' + currencyIcon(currency) + '<span><small>' + esc(t("b_withdraw")) + '</small><b>' + esc(currencyLabel(currency)) + '</b></span></div><small>' + esc(t("withdraw_available")) + '</small><strong>' + esc(fmt(available)) + ' <em>' + esc(currency) + '</em></strong></article><section class="withdraw-recipient"><b>' + esc(kind) + '</b><div class="withdraw-preview currency-' + esc(String(currency).toLowerCase()) + '"><span>LedgerGift</span><i class="card-chip" aria-hidden="true"></i><strong id="withdrawPreview">' + esc(preview) + '</strong></div><label class="fld"><span>' + esc(kind) + '</span><input class="field" id="withdrawRequisite" value="' + esc(fiat ? String(raw).replace(/\D/g, "").replace(/(.{4})/g, "$1 ").trim() : raw) + '" placeholder="' + esc(stars ? "@username" : (crypto ? "UQ..." : "0000 0000 0000 0000")) + '"' + (fiat ? ' inputmode="numeric" maxlength="24"' : '') + '></label></section><label class="fld withdraw-amount"><span>' + esc(t("amount")) + '</span><div class="withdraw-input"><input id="withdrawAmount" type="number" inputmode="decimal" placeholder="0"><b>' + esc(currency) + '</b></div></label><div class="withdraw-percent"><button data-percent="25">25%</button><button data-percent="50">50%</button><button data-percent="75">75%</button><button data-percent="100">Max</button></div><div class="withdraw-summary"><span>' + esc(t("amount")) + '</span><b id="withdrawSummary">—</b><span>' + esc(t("withdraw_to")) + '</span><b id="withdrawTarget">' + esc(preview) + '</b></div><button class="btn primary block" id="withdrawSubmit">' + esc(t("withdraw_request")) + '</button></div>');
+      document.querySelectorAll("[data-withdraw-currency]").forEach(function (button) { button.addEventListener("click", function () { draw(button.getAttribute("data-withdraw-currency")); }); });
+      const req = document.getElementById("withdrawRequisite"), amountField = document.getElementById("withdrawAmount");
+      const sync = function () { const value = req.value.trim(); const num = value.replace(/\D/g, ""); const shown = fiat ? (num ? "•••• " + num.slice(-4) : "•••• •••• •••• ••••") : (value || (stars ? "@username" : "UQ…")); document.getElementById("withdrawPreview").textContent = shown; document.getElementById("withdrawTarget").textContent = shown; const amount = Number(amountField.value || 0); document.getElementById("withdrawSummary").textContent = amount > 0 ? fmt(amount) + " " + currency : "—"; };
+      if (fiat) req.addEventListener("input", function () { this.value = this.value.replace(/\D/g, "").slice(0, 20).replace(/(.{4})/g, "$1 ").trim(); sync(); }); else req.addEventListener("input", sync);
+      amountField.addEventListener("input", sync); sync();
+      document.querySelectorAll("[data-percent]").forEach(function (button) { button.addEventListener("click", function () { amountField.value = String(Math.floor(available * Number(button.getAttribute("data-percent")) / 100 * 100) / 100); sync(); }); });
+      document.getElementById("withdrawSubmit").addEventListener("click", async function () {
+        const amount = parseFloat(amountField.value.replace(",", ".")); const value = req.value.trim();
+        if (!(amount > 0) || amount > available) return toast(t("withdraw_invalid"));
+        if (!value) return toast(t("withdraw_no_requisites"));
+        if (fiat && (value.replace(/\D/g, "").length < 16 || value.replace(/\D/g, "").length > 20)) return toast(t("card_number_invalid"));
+        if (stars && !/^@[A-Za-z0-9_]+$/.test(value)) return toast(t("username_invalid"));
+        try { await api("/api/requisites", { method: "PUT", body: { currency: currency, kind: crypto ? "wallet" : (stars ? "username" : "card"), label: item ? item.label : "", value: value } }); requisites[currency] = { value: value, label: item ? item.label : "" }; await api("/api/balance/withdraw", { method: "POST", body: { currency: currency, amount: amount } }); document.getElementById("sheet").remove(); routes.balance(); }
+        catch (e) { toast(errText(e)); }
+      });
+    };
+    draw(initialCurrency || localStorage.getItem("lg-currency-card") || "TON");
   }
 
   // =======================================================================
