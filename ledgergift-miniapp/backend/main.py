@@ -111,6 +111,7 @@ def profile_payload(user_id: int, username: str, lang: str) -> dict:
         "volume": volume,
         "volume_label": money(volume),
         "level": seller_level(orders, volume, lang),
+        "deal_stats": db.user_deal_stats(user_id, username),
     }
 
 

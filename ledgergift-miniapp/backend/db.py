@@ -489,6 +489,23 @@ def user_deals(user_id: int, username: str, limit: int = 12) -> list[Deal]:
     return [Deal(**dict(row)) for row in rows]
 
 
+def user_deal_stats(user_id: int, username: str) -> dict[str, int]:
+    """Return factual deal counters for the profile-card back side."""
+    with closing(db()) as connection:
+        rows = connection.execute(
+            """SELECT status, COUNT(*) AS count FROM deals
+               WHERE seller_id = ? OR lower(buyer_username) = ?
+               GROUP BY status""",
+            (user_id, (username or "").lower()),
+        ).fetchall()
+    counts = {row["status"]: int(row["count"]) for row in rows}
+    return {
+        "total": sum(counts.values()),
+        "completed": counts.get("completed", 0),
+        "cancelled": counts.get("cancelled", 0),
+    }
+
+
 def pay_deal_from_balance(tag: str, user_id: int) -> tuple[bool, str]:
     with closing(db()) as connection:
         row = connection.execute("SELECT * FROM deals WHERE tag = ?", (tag,)).fetchone()

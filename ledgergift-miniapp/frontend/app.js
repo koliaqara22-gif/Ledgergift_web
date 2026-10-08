@@ -350,25 +350,43 @@
     }).join("") + '</div>';
   }
 
+  function renderCurrencyBalance(data, selectedCurrency) {
+    const currencies = state.boot.currencies || [];
+    const selected = currencies.indexOf(selectedCurrency) >= 0 ? selectedCurrency : (currencies[0] || "Stars");
+    const amount = Number((data.balances || {})[selected] || 0);
+    const cardClass = String(selected).toLowerCase();
+    const tabs = currencies.map(function (currency) {
+      return '<button class="currency-tab' + (currency === selected ? ' active' : '') + '" data-currency-card="' + esc(currency) + '">' + currencyIcon(currency) + '<span>' + esc(currencyLabel(currency)) + '</span></button>';
+    }).join("");
+    view.innerHTML =
+      '<section class="pad fade">' + header(t("balance_title"), icon("wallet")) +
+        '<div class="currency-tabs" role="tablist">' + tabs + '</div>' +
+        '<article class="currency-showcase currency-' + esc(cardClass) + '">' +
+          '<i class="currency-orbit orbit-one"></i><i class="currency-orbit orbit-two"></i>' +
+          '<div class="currency-showcase-head"><span class="currency-showcase-name">' + currencyIcon(selected) + '<b>' + esc(currencyLabel(selected)) + '</b></span><span>LedgerGift</span></div>' +
+          '<div class="currency-balance-label">' + esc(t("balance_title")) + '</div>' +
+          '<strong>' + esc(fmt(amount)) + '<small>' + esc(selected) + '</small></strong>' +
+          '<div class="currency-showcase-foot"><span>LEDGERGIFT • SECURE WALLET</span><i class="card-chip" aria-hidden="true"></i></div>' +
+        '</article>' +
+        '<div class="wallet-actions currency-actions">' +
+          '<button class="btn primary" data-act="topup">' + icon("wallet") + esc(t("b_topup")) + '</button>' +
+          '<button class="btn ghost" data-act="withdraw">' + icon("withdraw") + esc(t("b_withdraw")) + '</button>' +
+        '</div>' +
+        '<button class="transactions-btn" data-act="transactions">' + icon("clock") + '<span>' + esc(t("transactions")) + '</span><i>›</i></button>' +
+      '</section>';
+    view.querySelectorAll("[data-currency-card]").forEach(function (button) {
+      button.addEventListener("click", function () { const currency = button.getAttribute("data-currency-card"); localStorage.setItem("lg-currency-card", currency); renderCurrencyBalance(data, currency); });
+    });
+    view.querySelector('[data-act="withdraw"]').addEventListener("click", function () { withdrawSheet(data.balances); });
+    view.querySelector('[data-act="topup"]').addEventListener("click", function () { go("wallets"); });
+    view.querySelector('[data-act="transactions"]').addEventListener("click", function () { transactionsSheet(data.history); });
+  }
+
   routes.balance = async function () {
     view.innerHTML = '<div class="loader"><div class="spin"></div></div>';
     try {
       const d = await api("/api/balances");
-      view.innerHTML =
-        '<section class="pad fade">' + header(t("balance_title"), icon("wallet")) +
-          '<div class="balance-card"><div class="balance-card-head"><b>' + esc(t("balance_title")) + '</b><span>' + esc(t("wallets")) + '</span></div>' + balanceRows(d.balances) + '</div>' +
-          '<div class="wallet-actions">' +
-            '<button class="btn ghost" data-act="withdraw">' + icon("withdraw") + esc(t("b_withdraw")) + '</button>' +
-            '<button class="btn primary" data-act="topup">' + icon("wallet") + esc(t("b_topup")) + '</button>' +
-          '</div>' +
-          '<button class="transactions-btn" data-act="transactions">' + icon("clock") + '<span>' + esc(t("transactions")) + '</span><i>›</i></button>' +
-        '</section>';
-      view.querySelector('[data-act="withdraw"]').addEventListener("click", function () { withdrawSheet(d.balances); });
-      view.querySelector('[data-act="topup"]').addEventListener("click", function () {
-        go("wallets");
-      });
-      view.querySelector('[data-act="transactions"]').addEventListener("click", function () { transactionsSheet(d.history); });
-      view.querySelectorAll("[data-wallet]").forEach(function (b) { b.addEventListener("click", function () { walletSheet(b.getAttribute("data-wallet"), d.balances[b.getAttribute("data-wallet")] || 0); }); });
+      renderCurrencyBalance(d, localStorage.getItem("lg-currency-card") || "TON");
     } catch (e) { toast(errText(e)); }
   };
 
@@ -468,23 +486,28 @@
       const cardTheme = localStorage.getItem("lg-card-theme") || "gold";
       const dealRow = function (d) { return '<button class="deal-history-row status-' + esc(d.status) + '" data-deal="' + esc(d.tag) + '"><span><b>#' + esc(d.tag) + '</b><small>' + esc(d.item_type_label) + '</small></span><span><b>' + esc(d.amount_label) + ' ' + esc(d.currency) + '</b><small>' + esc(statusLabel(d.status)) + '</small></span></button>'; };
       const dealRows = deals.deals.length ? deals.deals.map(dealRow).join("") : '<p class="muted">' + esc(t("history_empty")) + '</p>';
+      const stats = p.deal_stats || { total: p.orders || 0, completed: p.orders || 0, cancelled: 0 };
+      const cryptoMarks = ["TON", "USDT", "Stars"].map(function (currency) { return '<i title="' + esc(currencyLabel(currency)) + '">' + currencyIcon(currency) + '</i>'; }).join("");
       view.innerHTML =
         '<section class="pad fade">' + header(t("profile_title"), icon("user")) +
-          '<div class="profile-card theme-' + esc(cardTheme) + '" id="profileCard"><div class="card-brand">LedgerGift <span>PRIVATE</span></div><button class="card-palette" id="cardPalette" aria-label="card color"><span></span></button><div class="card-chip" aria-hidden="true"></div><div class="pf-person"><div class="pf-avatar">' + esc((p.username || "?").charAt(0).toUpperCase()) + '</div><div><div class="pf-name">' + esc(displayName) + '</div><div class="pf-user">' + esc(uname) + '</div></div></div><small>' + esc(t("volume")) + '</small><strong>' + esc(fmt(p.volume || 0)) + '</strong><div class="card-footer"><span>LEDGERGIFT • SECURE DEALS</span><b>' + esc(p.orders || 0) + ' ' + esc(t("orders_word")) + '</b></div></div>' +
+          '<div class="flip-wrap profile-flip-wrap" id="profileFlip"><div class="flip-card">' +
+            '<div class="flip-face flip-front profile-card theme-' + esc(cardTheme) + '"><div class="card-brand">LedgerGift <span>PRIVATE</span></div><button class="card-palette" id="cardPalette" aria-label="card color"><span></span></button><button class="card-turn" data-card-turn aria-label="' + esc(t("flip_card")) + '">↻</button><div class="card-chip" aria-hidden="true"></div><div class="pf-person"><div class="pf-avatar">' + esc((p.username || "?").charAt(0).toUpperCase()) + '</div><div><div class="pf-name">' + esc(displayName) + '</div><div class="pf-user">' + esc(uname) + '</div></div></div><small>' + esc(t("volume")) + '</small><strong>' + esc(fmt(p.volume || 0)) + '</strong><div class="card-footer"><span>LEDGERGIFT • SECURE DEALS</span><b>' + esc(p.orders || 0) + ' ' + esc(t("orders_word")) + '</b></div></div>' +
+            '<div class="flip-face flip-back profile-card theme-' + esc(cardTheme) + '"><div class="card-back-stripe"></div><div class="card-brand">LedgerGift <span>MEMBER</span></div><button class="card-turn" data-card-turn aria-label="' + esc(t("flip_card")) + '">↻</button><div class="card-back-id"><small>TELEGRAM ID</small><b>' + esc(p.id || "—") + '</b></div><div class="card-back-crypto"><small>CRYPTO</small><span>' + cryptoMarks + '</span></div><div class="card-back-stats"><div><b>' + esc(stats.total || 0) + '</b><span>' + esc(t("all_deals")) + '</span></div><div><b>' + esc(stats.completed || 0) + '</b><span>' + esc(t("success_orders")) + '</span></div><div><b>' + esc(stats.cancelled || 0) + '</b><span>' + esc(t("cancelled")) + '</span></div></div><div class="card-footer"><span>LEDGERGIFT • VERIFIED</span><b>◈</b></div></div>' +
+          '</div></div>' +
           '<div class="profile-actions"><button class="profile-action active" id="profileWallets">' + icon("wallet") + esc(t("wallets")) + '</button><button class="profile-action" id="profileLang">' + icon("globe") + esc(t("a_language")) + '</button></div>' +
           '<section class="level-progress"><div><span>' + esc(t("level_progress")) + '</span><b>' + esc((p.level || {}).label || "") + '</b></div><div class="level-track"><i style="width:' + levelProgress + '%"></i></div><small>' + esc(p.orders || 0) + ' / ' + esc(nextOrderTarget) + ' ' + esc(t("orders_word")) + '</small></section>' +
-          '<h3 class="subhead">' + esc(t("deal_title")) + '</h3><div class="history-filter" id="dealFilters"><button class="seg active" data-deal-filter="all">' + esc(t("filter_all")) + '</button><button class="seg" data-deal-filter="created">' + esc(t("filter_created")) + '</button><button class="seg" data-deal-filter="paid">' + esc(t("filter_transfer")) + '</button><button class="seg" data-deal-filter="completed">' + esc(t("filter_completed")) + '</button></div><div class="deal-history" id="profileDeals">' + dealRows + '</div>' +
+          '<h3 class="subhead">' + esc(t("deal_title")) + '</h3><div class="deal-history" id="profileDeals">' + dealRows + '</div>' +
         '</section>';
       document.getElementById("cardPalette").addEventListener("click", function (e) { e.stopPropagation(); cardThemeSheet(); });
+      view.querySelectorAll("[data-card-turn]").forEach(function (button) { button.addEventListener("click", function () { document.getElementById("profileFlip").classList.toggle("flipped"); }); });
       document.getElementById("profileWallets").addEventListener("click", function () { go("wallets"); });
       document.getElementById("profileLang").addEventListener("click", function () { go("language"); });
       view.querySelectorAll("[data-deal]").forEach(function (b) { b.addEventListener("click", function () { go("deal", b.getAttribute("data-deal")); }); });
-      view.querySelectorAll("[data-deal-filter]").forEach(function (button) { button.addEventListener("click", function () { const filter = button.getAttribute("data-deal-filter"); view.querySelectorAll("[data-deal-filter]").forEach(function (item) { item.classList.toggle("active", item === button); }); const visible = filter === "all" ? deals.deals : deals.deals.filter(function (item) { return filter === "paid" ? (item.status === "paid" || item.status === "transferred") : item.status === filter; }); document.getElementById("profileDeals").innerHTML = visible.length ? visible.map(dealRow).join("") : '<p class="muted">' + esc(t("history_empty")) + '</p>'; view.querySelectorAll("[data-deal]").forEach(function (b) { b.addEventListener("click", function () { go("deal", b.getAttribute("data-deal")); }); }); }); });
     } catch (e) { toast(errText(e)); }
   };
 
   function cardThemeSheet() {
-    const themes = [["gold", t("card_gold")], ["ocean", t("card_ocean")], ["emerald", t("card_emerald")], ["violet", t("card_violet")], ["rose", t("card_rose")]];
+    const themes = [["classic", t("card_classic")], ["midnight", t("card_midnight")], ["shine", t("card_shine")], ["sunset", t("card_sunset")], ["neon", t("card_neon")], ["emerald", t("card_emerald")], ["gold", t("card_gold")], ["rose", t("card_rose")], ["lava", t("card_lava")], ["hologram", t("card_hologram")], ["space", t("card_space")], ["titan", t("card_titan")]];
     showSheet('<button class="sheet-close" data-close>×</button><h2>' + esc(t("card_color")) + '</h2><div class="theme-grid">' + themes.map(function (item) { return '<button class="theme-choice theme-' + item[0] + '" data-card-theme="' + item[0] + '"><span></span><b>' + esc(item[1]) + '</b></button>'; }).join("") + '</div>');
     document.querySelectorAll("[data-card-theme]").forEach(function (button) { button.addEventListener("click", function () { localStorage.setItem("lg-card-theme", button.getAttribute("data-card-theme")); document.getElementById("sheet").remove(); routes.profile(); }); });
   }
