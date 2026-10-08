@@ -5,7 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>LedgerGift</title>
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="style.css?v=20261009a" />
+  <link rel="stylesheet" href="style.css?v=20261009b" />
+  <style>
+    /* Last-resort layout guards: these win over legacy card rules in all WebViews. */
+    .profile-flip-wrap{height:238px!important;margin:4px 0 14px!important;position:relative!important}
+    .profile-flip-wrap .flip-card{height:238px!important;position:relative!important;transform:none!important}
+    .profile-flip-wrap .flip-face.profile-card{position:absolute!important;inset:0!important;width:100%!important;height:238px!important;margin:0!important;padding:20px!important;box-sizing:border-box!important}
+    .profile-flip-wrap .flip-front{display:block!important}.profile-flip-wrap.flipped .flip-front{display:none!important}
+    .profile-flip-wrap .flip-back{display:none!important}.profile-flip-wrap.flipped .flip-back{display:block!important}
+    .profile-flip-wrap .card-chip{top:auto!important;left:auto!important;right:22px!important;bottom:49px!important}
+    .profile-flip-wrap .card-palette{top:15px!important;left:auto!important;right:56px!important}
+    .profile-flip-wrap .card-turn{top:auto!important;left:auto!important;right:17px!important;bottom:16px!important}
+    .profile-flip-wrap .card-footer{left:20px!important;right:20px!important;bottom:15px!important}
+    .profile-flip-wrap.flipped .card-footer{bottom:11px!important}
+    body.light-theme .lang-row{background:#fff!important;color:#151824!important;border-color:rgba(21,32,52,.16)!important}
+    body.light-theme .lang-row.active{color:#151824!important;background:#f8fcff!important}
+    .currency-tabs{scrollbar-width:thin!important;scrollbar-color:rgba(68,133,224,.62) transparent!important;padding-bottom:9px!important}
+    .currency-tabs::-webkit-scrollbar{display:block!important;height:3px!important}.currency-tabs::-webkit-scrollbar-thumb{background:rgba(68,133,224,.62)!important;border-radius:99px!important}
+    .wallet-requisite-btn{margin-top:12px!important;min-height:52px!important}
+  </style>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body class="light-theme">
