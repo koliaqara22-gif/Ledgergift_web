@@ -71,6 +71,12 @@
     document.body.classList.remove("success-flash");
     void document.body.offsetWidth;
     document.body.classList.add("success-flash");
+    const sparks = document.createElement("div");
+    sparks.className = "success-sparkles";
+    sparks.setAttribute("aria-hidden", "true");
+    sparks.innerHTML = '<i></i><i></i><i></i><i></i><i></i><i></i>';
+    document.body.appendChild(sparks);
+    setTimeout(function () { sparks.remove(); }, 820);
     setTimeout(function () { document.body.classList.remove("success-flash"); }, 720);
   }
 
@@ -235,11 +241,14 @@
         '<div><small>' + esc(t("volume")) + '</small><b>' + esc(profile.volume_label || "0") + '</b></div>' +
         '<div><small>' + esc(t("home_active")) + '</small><b>' + active.length + '</b></div></div>';
       const activeHtml = active.length ? '<section class="home-active"><h3>' + esc(t("home_active")) + '</h3><div class="deal-history">' + active.map(function (deal) {
-        return '<button class="deal-history-row" data-home-deal="' + esc(deal.tag) + '"><span><b>#' + esc(deal.tag) + '</b><small>' + esc(deal.item_type_label) + '</small></span><span><b>' + esc(deal.amount_label) + ' ' + esc(deal.currency) + '</b><small>' + esc(statusLabel(deal.status)) + '</small></span></button>';
-      }).join("") + '</div></section>' : '';
+        return '<button class="deal-history-row status-' + esc(deal.status) + '" data-home-deal="' + esc(deal.tag) + '"><span><b>#' + esc(deal.tag) + '</b><small>' + esc(deal.item_type_label) + '</small></span><span><b>' + esc(deal.amount_label) + ' ' + esc(deal.currency) + '</b><small>' + esc(statusLabel(deal.status)) + '</small></span></button>';
+      }).join("") + '</div></section>' : '<section class="empty-state"><span>' + icon("gift") + '</span><b>' + esc(t("empty_deals_title")) + '</b><small>' + esc(t("empty_deals_hint")) + '</small><button class="btn primary" data-empty-create>' + esc(t("a_create")) + '</button></section>';
+      const trust = '<section class="trust-strip"><div>' + icon("shield") + '<span><b>' + esc(t("trust_secure")) + '</b><small>' + esc(t("trust_secure_hint")) + '</small></span></div><div>' + icon("clock") + '<span><b>' + esc(t("trust_manager")) + '</b><small>' + esc(t("trust_manager_hint")) + '</small></span></div></section>';
       const placeholder = view.querySelector(".home-overview");
-      if (placeholder) placeholder.outerHTML = overview + activeHtml;
+      if (placeholder) placeholder.outerHTML = overview + activeHtml + trust;
       view.querySelectorAll("[data-home-deal]").forEach(function (button) { button.addEventListener("click", function () { go("deal", button.getAttribute("data-home-deal")); }); });
+      const emptyCreate = view.querySelector("[data-empty-create]");
+      if (emptyCreate) emptyCreate.addEventListener("click", function () { go("create"); });
     } catch (e) {
       const placeholder = view.querySelector(".home-overview");
       if (placeholder) placeholder.remove();
@@ -456,12 +465,15 @@
       const uname = p.username ? "@" + p.username : "\u2014";
       const displayName = state.boot.me.first_name || uname;
       const total = state.boot.currencies.reduce(function (sum, currency) { return sum + Number(balanceData.balances[currency] || 0); }, 0);
+      const nextOrderTarget = p.orders < 10 ? 10 : (p.orders < 30 ? 30 : (p.orders < 100 ? 100 : p.orders));
+      const levelProgress = nextOrderTarget === p.orders ? 100 : Math.min(100, Math.round((p.orders / nextOrderTarget) * 100));
       const cardTheme = localStorage.getItem("lg-card-theme") || "gold";
       const dealRows = deals.deals.length ? deals.deals.map(function (d) { return '<button class="deal-history-row" data-deal="' + esc(d.tag) + '"><span><b>#' + esc(d.tag) + '</b><small>' + esc(d.item_type_label) + '</small></span><span><b>' + esc(d.amount_label) + ' ' + esc(d.currency) + '</b><small>' + esc(statusLabel(d.status)) + '</small></span></button>'; }).join("") : '<p class="muted">' + esc(t("history_empty")) + '</p>';
       view.innerHTML =
         '<section class="pad fade">' + header(t("profile_title"), icon("user")) +
           '<div class="profile-card theme-' + esc(cardTheme) + '" id="profileCard"><div class="card-brand">LedgerGift <span>PRIVATE</span></div><button class="card-palette" id="cardPalette" aria-label="card color"><span></span></button><div class="card-chip" aria-hidden="true"></div><div class="pf-person"><div class="pf-avatar">' + esc((p.username || "?").charAt(0).toUpperCase()) + '</div><div><div class="pf-name">' + esc(displayName) + '</div><div class="pf-user">' + esc(uname) + '</div></div></div><small>' + esc(t("volume")) + '</small><strong>' + esc(fmt(p.volume || 0)) + '</strong><div class="card-footer"><span>LEDGERGIFT • SECURE DEALS</span><b>' + esc(p.orders || 0) + ' ' + esc(t("orders_word")) + '</b></div></div>' +
           '<div class="profile-actions"><button class="profile-action active" id="profileWallets">' + icon("wallet") + esc(t("wallets")) + '</button><button class="profile-action" id="profileLang">' + icon("globe") + esc(t("a_language")) + '</button></div>' +
+          '<section class="level-progress"><div><span>' + esc(t("level_progress")) + '</span><b>' + esc((p.level || {}).label || "") + '</b></div><div class="level-track"><i style="width:' + levelProgress + '%"></i></div><small>' + esc(p.orders || 0) + ' / ' + esc(nextOrderTarget) + ' ' + esc(t("orders_word")) + '</small></section>' +
           '<h3 class="subhead">' + esc(t("deal_title")) + '</h3><div class="deal-history">' + dealRows + '</div>' +
         '</section>';
       document.getElementById("cardPalette").addEventListener("click", function (e) { e.stopPropagation(); cardThemeSheet(); });
