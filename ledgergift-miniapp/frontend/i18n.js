@@ -130,3 +130,9 @@ Object.assign(window.I18N.zh, {card_gold:"金色",card_emerald:"翡翠",card_ros
 Object.assign(window.I18N.ar, {card_gold:"ذهبي",card_emerald:"زمرد",card_rose:"وردي"});
 Object.assign(window.I18N.ja, {card_gold:"ゴールド",card_emerald:"エメラルド",card_rose:"ローズ"});
 Object.assign(window.I18N.kk, {card_gold:"Алтын",card_emerald:"Изумруд",card_rose:"Раушан"});
+Object.assign(window.I18N.ru, {flip_short:"Перевернуть"});
+Object.assign(window.I18N.en, {flip_short:"Flip"});
+Object.assign(window.I18N.zh, {flip_short:"翻转"});
+Object.assign(window.I18N.ar, {flip_short:"قلب البطاقة"});
+Object.assign(window.I18N.ja, {flip_short:"裏返す"});
+Object.assign(window.I18N.kk, {flip_short:"Аудару"});
