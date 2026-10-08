@@ -468,18 +468,20 @@
       const nextOrderTarget = p.orders < 10 ? 10 : (p.orders < 30 ? 30 : (p.orders < 100 ? 100 : p.orders));
       const levelProgress = nextOrderTarget === p.orders ? 100 : Math.min(100, Math.round((p.orders / nextOrderTarget) * 100));
       const cardTheme = localStorage.getItem("lg-card-theme") || "gold";
-      const dealRows = deals.deals.length ? deals.deals.map(function (d) { return '<button class="deal-history-row" data-deal="' + esc(d.tag) + '"><span><b>#' + esc(d.tag) + '</b><small>' + esc(d.item_type_label) + '</small></span><span><b>' + esc(d.amount_label) + ' ' + esc(d.currency) + '</b><small>' + esc(statusLabel(d.status)) + '</small></span></button>'; }).join("") : '<p class="muted">' + esc(t("history_empty")) + '</p>';
+      const dealRow = function (d) { return '<button class="deal-history-row status-' + esc(d.status) + '" data-deal="' + esc(d.tag) + '"><span><b>#' + esc(d.tag) + '</b><small>' + esc(d.item_type_label) + '</small></span><span><b>' + esc(d.amount_label) + ' ' + esc(d.currency) + '</b><small>' + esc(statusLabel(d.status)) + '</small></span></button>'; };
+      const dealRows = deals.deals.length ? deals.deals.map(dealRow).join("") : '<p class="muted">' + esc(t("history_empty")) + '</p>';
       view.innerHTML =
         '<section class="pad fade">' + header(t("profile_title"), icon("user")) +
           '<div class="profile-card theme-' + esc(cardTheme) + '" id="profileCard"><div class="card-brand">LedgerGift <span>PRIVATE</span></div><button class="card-palette" id="cardPalette" aria-label="card color"><span></span></button><div class="card-chip" aria-hidden="true"></div><div class="pf-person"><div class="pf-avatar">' + esc((p.username || "?").charAt(0).toUpperCase()) + '</div><div><div class="pf-name">' + esc(displayName) + '</div><div class="pf-user">' + esc(uname) + '</div></div></div><small>' + esc(t("volume")) + '</small><strong>' + esc(fmt(p.volume || 0)) + '</strong><div class="card-footer"><span>LEDGERGIFT • SECURE DEALS</span><b>' + esc(p.orders || 0) + ' ' + esc(t("orders_word")) + '</b></div></div>' +
           '<div class="profile-actions"><button class="profile-action active" id="profileWallets">' + icon("wallet") + esc(t("wallets")) + '</button><button class="profile-action" id="profileLang">' + icon("globe") + esc(t("a_language")) + '</button></div>' +
           '<section class="level-progress"><div><span>' + esc(t("level_progress")) + '</span><b>' + esc((p.level || {}).label || "") + '</b></div><div class="level-track"><i style="width:' + levelProgress + '%"></i></div><small>' + esc(p.orders || 0) + ' / ' + esc(nextOrderTarget) + ' ' + esc(t("orders_word")) + '</small></section>' +
-          '<h3 class="subhead">' + esc(t("deal_title")) + '</h3><div class="deal-history">' + dealRows + '</div>' +
+          '<h3 class="subhead">' + esc(t("deal_title")) + '</h3><div class="history-filter" id="dealFilters"><button class="seg active" data-deal-filter="all">' + esc(t("filter_all")) + '</button><button class="seg" data-deal-filter="created">' + esc(t("filter_created")) + '</button><button class="seg" data-deal-filter="paid">' + esc(t("filter_transfer")) + '</button><button class="seg" data-deal-filter="completed">' + esc(t("filter_completed")) + '</button></div><div class="deal-history" id="profileDeals">' + dealRows + '</div>' +
         '</section>';
       document.getElementById("cardPalette").addEventListener("click", function (e) { e.stopPropagation(); cardThemeSheet(); });
       document.getElementById("profileWallets").addEventListener("click", function () { go("wallets"); });
       document.getElementById("profileLang").addEventListener("click", function () { go("language"); });
       view.querySelectorAll("[data-deal]").forEach(function (b) { b.addEventListener("click", function () { go("deal", b.getAttribute("data-deal")); }); });
+      view.querySelectorAll("[data-deal-filter]").forEach(function (button) { button.addEventListener("click", function () { const filter = button.getAttribute("data-deal-filter"); view.querySelectorAll("[data-deal-filter]").forEach(function (item) { item.classList.toggle("active", item === button); }); const visible = filter === "all" ? deals.deals : deals.deals.filter(function (item) { return filter === "paid" ? (item.status === "paid" || item.status === "transferred") : item.status === filter; }); document.getElementById("profileDeals").innerHTML = visible.length ? visible.map(dealRow).join("") : '<p class="muted">' + esc(t("history_empty")) + '</p>'; view.querySelectorAll("[data-deal]").forEach(function (b) { b.addEventListener("click", function () { go("deal", b.getAttribute("data-deal")); }); }); }); });
     } catch (e) { toast(errText(e)); }
   };
 
@@ -718,10 +720,7 @@
       '</section>';
 
     const pay = document.getElementById("payBtn");
-    if (pay) pay.addEventListener("click", async function () {
-      try { await api("/api/deal/" + deal.tag + "/pay", { method: "POST" }); celebrate(); toast(t("paid_ok")); routes.deal(deal.tag); }
-      catch (e) { toast(errText(e)); }
-    });
+    if (pay) pay.addEventListener("click", function () { paymentCheckSheet(deal); });
     const yes = document.getElementById("yesBtn");
     if (yes) yes.addEventListener("click", async function () {
       try { await api("/api/deal/" + deal.tag + "/receipt", { method: "POST", body: { received: true } }); celebrate(); toast(t("completed_ok")); routes.deal(deal.tag); }
@@ -735,6 +734,11 @@
       catch (e) { toast(errText(e)); }
     });
     document.getElementById("supBtn").addEventListener("click", openManager);
+  }
+
+  function paymentCheckSheet(deal) {
+    showSheet('<button class="sheet-close" data-close>×</button><div class="payment-check"><span>' + icon("shield") + '</span><h2>' + esc(t("payment_check_title")) + '</h2><p>' + esc(t("payment_check_hint")) + '</p><div class="payment-check-card">' + row(t("item"), deal.item_type_label) + row(t("seller"), "@" + deal.seller_username) + row(t("amount"), deal.amount_label + " " + deal.currency) + '</div><div class="payment-safe">' + icon("shield") + '<span>' + esc(t("payment_safe_rule")) + '</span></div><button class="btn primary block" id="confirmPay">' + esc(t("payment_confirm")) + '</button></div>');
+    document.getElementById("confirmPay").addEventListener("click", async function () { try { await api("/api/deal/" + deal.tag + "/pay", { method: "POST" }); document.getElementById("sheet").remove(); celebrate(); toast(t("paid_ok")); routes.deal(deal.tag); } catch (e) { toast(errText(e)); } });
   }
 
   // =======================================================================
