@@ -94,6 +94,7 @@ def deal_public(deal: db.Deal, lang: str) -> dict:
     d = deal.to_dict()
     d["item_type_label"] = DEAL_TYPES.get(deal.item_type, {}).get(lang if lang in ("ru", "en") else "en", deal.item_type)
     d["amount_label"] = money(deal.amount)
+    d["transfer_seconds_left"] = db.deal_timer(deal.tag) if deal.status in ("paid", "transferred") else None
     return d
 
 
@@ -208,6 +209,8 @@ async def put_requisites(body: RequisitesIn, user: dict = Depends(current_user))
             raise HTTPException(status_code=400, detail="card_number_invalid")
         value = digits
     db.save_requisites(int(user["id"]), body.currency, body.kind, body.label, value)
+    if db.is_admin(int(user["id"])):
+        db.audit(int(user["id"]), "requisites_updated", body.currency)
     return {"ok": True}
 
 
@@ -396,6 +399,21 @@ async def confirm_receipt(tag: str, body: ReceiptIn, user: dict = Depends(curren
     return {"ok": True, "deal": deal_public(deal, db.get_user_lang(uid))}
 
 
+@app.post("/api/deal/{tag}/cancel")
+async def cancel_deal_after_refusal(tag: str, user: dict = Depends(current_user)) -> dict:
+    tag = tag.lstrip("#").upper()
+    deal = db.find_deal(tag)
+    if not deal:
+        raise HTTPException(status_code=404, detail="deal not found")
+    uid = int(user["id"])
+    if (user.get("username") or "").lower() != deal.buyer_username.lower() and not db.is_staff(uid):
+        raise HTTPException(status_code=403, detail="not your deal")
+    ok, reason, cancelled = db.cancel_paid_deal(tag, uid)
+    if not ok:
+        raise HTTPException(status_code=400, detail=reason)
+    return {"ok": True, "deal": deal_public(cancelled, db.get_user_lang(uid))}
+
+
 @app.post("/api/deal/{tag}/notify-seller")
 async def buyer_notify_seller_about_payment(tag: str, user: dict = Depends(current_user)) -> dict:
     """Lets the assigned buyer re-send the bot's complete paid-deal notice."""
@@ -418,6 +436,7 @@ async def admin_mark_deal_transferred(tag: str, user: dict = Depends(current_adm
     ok, reason, deal = db.mark_deal_transferred(tag.lstrip("#").upper())
     if not ok:
         raise HTTPException(status_code=400, detail=reason)
+    db.audit(int(user["id"]), "deal_transferred", tag)
     return {"ok": True, "deal": deal_public(deal, db.get_user_lang(int(user["id"])))}
 
 
@@ -537,7 +556,13 @@ async def admin_add_balance(body: AddBalanceIn, user: dict = Depends(current_adm
     if body.amount <= 0:
         raise HTTPException(status_code=400, detail="amount must be positive")
     db.add_balance(body.user_id, body.amount, body.currency, reason="manual_topup", actor_id=int(user["id"]))
+    db.audit(int(user["id"]), "balance_topped_up", f"{body.user_id}: {body.amount} {body.currency}")
     return {"ok": True, "balances": db.get_balances(body.user_id)}
+
+
+@app.get("/api/admin/audit")
+async def admin_audit(user: dict = Depends(current_admin)) -> dict:
+    return {"items": db.audit_log()}
 
 
 class SetStatsIn(BaseModel):

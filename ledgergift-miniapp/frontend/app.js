@@ -214,6 +214,7 @@
     grid += card("profile", icon("user"), t("a_profile"));
     grid += '<button class="grid-card" data-manager><span class="gc-ic">' + icon("chat") + '</span><span class="gc-lbl">' + esc(t("a_manager")) + '</span></button>';
     grid += card("language", icon("globe"), t("a_language"));
+    grid += card("how", icon("shield"), t("how_title"));
     if (isAdmin) grid += card("admin", icon("shield"), t("a_admin"), "admin-card span2");
 
     view.innerHTML =
@@ -694,7 +695,7 @@
     if (role.can_pay) actions += '<button class="btn primary block" id="payBtn">' + esc(t("pay_from_balance")) + '</button>';
     if (role.can_confirm) {
       actions += '<button class="btn primary block" id="yesBtn">' + esc(t("yes_received")) + '</button>' +
-                 '<button class="btn block" id="noBtn">' + esc(t("no")) + '</button>';
+                 '<button class="btn block" id="noBtn">' + esc(t("seller_refused")) + '</button>';
     }
     if (role.is_buyer && (deal.status === "paid" || deal.status === "transferred")) {
       actions += '<button class="btn ghost block" id="notifySellerBtn">' + icon("send") + esc(t("notify_seller_paid")) + '</button>';
@@ -703,6 +704,8 @@
       actions += '<p class="muted">' + esc(t("not_your_deal")) + '</p>';
     }
     const managerStep = (role.can_confirm || role.is_seller) && (deal.status === "paid" || deal.status === "transferred");
+    if (deal.transfer_seconds_left !== null && deal.transfer_seconds_left !== undefined) actions = '<div class="transfer-timer" id="transferTimer" data-left="' + deal.transfer_seconds_left + '">' + esc(t("transfer_deadline")) + ' <b></b></div>' + actions;
+    if ((role.is_buyer || role.is_seller) && deal.status !== "completed" && deal.status !== "cancelled") actions += '<button class="btn ghost block" id="problemBtn">' + esc(t("deal_problem")) + '</button>';
     actions += '<button class="btn ghost block" id="supBtn">' + esc(managerStep ? t("transfer_to_manager") : t("support")) + '</button>';
 
     view.innerHTML =
@@ -727,14 +730,22 @@
       catch (e) { toast(errText(e)); }
     });
     const no = document.getElementById("noBtn");
-    if (no) no.addEventListener("click", function () { openManager(); });
+    if (no) no.addEventListener("click", async function () { if (!confirm(t("cancel_confirm"))) return; try { await api("/api/deal/" + deal.tag + "/cancel", { method: "POST" }); celebrate(); toast(t("cancelled_ok")); routes.deal(deal.tag); } catch (e) { toast(errText(e)); } });
     const notifySeller = document.getElementById("notifySellerBtn");
     if (notifySeller) notifySeller.addEventListener("click", async function () {
       try { await api("/api/deal/" + deal.tag + "/notify-seller", { method: "POST" }); toast(t("seller_paid_sent")); }
       catch (e) { toast(errText(e)); }
     });
     document.getElementById("supBtn").addEventListener("click", openManager);
+    const problem = document.getElementById("problemBtn");
+    if (problem) problem.addEventListener("click", function () { openManagerWithDeal(deal.tag, t("problem_message")); });
+    startTransferTimer();
   }
+
+  function openManagerWithDeal(tag, message) { const url = "https://t.me/" + state.boot.support_username + "?text=" + encodeURIComponent(message + " #" + tag); if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, "_blank"); }
+  function startTransferTimer() { const node = document.getElementById("transferTimer"); if (!node) return; let seconds = Number(node.getAttribute("data-left")); const label = node.querySelector("b"); const tick = function () { const minutes = Math.floor(seconds / 60); const rest = String(seconds % 60).padStart(2, "0"); label.textContent = minutes + ":" + rest; if (seconds-- > 0) setTimeout(tick, 1000); else node.classList.add("expired"); }; tick(); }
+
+  routes.how = function () { view.innerHTML = '<section class="pad fade">' + header(t("how_title"), icon("shield")) + '<div class="how-steps"><div><span>1</span><b>' + esc(t("how_requisites")) + '</b><small>' + esc(t("how_requisites_hint")) + '</small></div><div><span>2</span><b>' + esc(t("how_order")) + '</b><small>' + esc(t("how_order_hint")) + '</small></div><div><span>3</span><b>' + esc(t("how_transfer")) + '</b><small>' + esc(t("how_transfer_hint")) + '</small></div></div><button class="btn primary block" id="howWallets">' + esc(t("wallets")) + '</button></section>'; document.getElementById("howWallets").addEventListener("click", function () { go("wallets"); }); };
 
   function paymentCheckSheet(deal) {
     showSheet('<button class="sheet-close" data-close>×</button><div class="payment-check"><span>' + icon("shield") + '</span><h2>' + esc(t("payment_check_title")) + '</h2><p>' + esc(t("payment_check_hint")) + '</p><div class="payment-check-card">' + row(t("item"), deal.item_type_label) + row(t("seller"), "@" + deal.seller_username) + row(t("amount"), deal.amount_label + " " + deal.currency) + '</div><div class="payment-safe">' + icon("shield") + '<span>' + esc(t("payment_safe_rule")) + '</span></div><button class="btn primary block" id="confirmPay">' + esc(t("payment_confirm")) + '</button></div>');
@@ -758,6 +769,7 @@
     items += item("stats", icon("chart"), t("adm_stats"));
     items += item("paylink", icon("settings"), t("adm_paylink"));
     items += item("myhistory", icon("wallet"), t("adm_myhistory"));
+    items += item("audit", icon("clock"), t("adm_audit"));
     if (isOwner) {
       items += item("team", icon("team"), t("adm_team"));
       items += item("addadmin", icon("team"), t("adm_addadmin"));
@@ -811,6 +823,10 @@
       api("/api/admin/history").then(function (d) {
         panel.innerHTML = '<div class="card">' + historyList(d.history) + '</div>';
       }).catch(function (e) { toast(errText(e)); });
+      return;
+    } else if (act === "audit") {
+      panel.innerHTML = '<div class="loader"><div class="spin"></div></div>';
+      api("/api/admin/audit").then(function (d) { panel.innerHTML = '<div class="audit-list">' + (d.items.length ? d.items.map(function (item) { return '<div><b>' + esc(item.action) + '</b><small>ID ' + esc(item.actor_id) + ' · ' + esc(item.target || "—") + '<br>' + esc(item.created_at) + '</small></div>'; }).join("") : '<p class="muted">' + esc(t("history_empty")) + '</p>') + '</div>'; }).catch(function (e) { toast(errText(e)); });
       return;
     }
     panel.innerHTML = '<div class="card">' + form +

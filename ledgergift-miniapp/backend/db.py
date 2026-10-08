@@ -124,6 +124,13 @@ def init_db() -> None:
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (user_id, currency)
             );
+            CREATE TABLE IF NOT EXISTS admin_audit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                actor_id INTEGER NOT NULL,
+                action TEXT NOT NULL,
+                target TEXT NOT NULL DEFAULT '',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
             """
         )
         connection.execute(
@@ -404,6 +411,18 @@ def save_requisites(user_id: int, currency: str, kind: str, label: str, value: s
         connection.commit()
 
 
+def audit(actor_id: int, action: str, target: str = "") -> None:
+    with closing(db()) as connection:
+        connection.execute("INSERT INTO admin_audit(actor_id, action, target) VALUES(?, ?, ?)", (actor_id, action, target))
+        connection.commit()
+
+
+def audit_log(limit: int = 80) -> list[dict]:
+    with closing(db()) as connection:
+        rows = connection.execute("SELECT actor_id, action, target, datetime(created_at, '+3 hours') AS created_at FROM admin_audit ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    return [dict(row) for row in rows]
+
+
 def delete_requisites(user_id: int, currency: str) -> None:
     with closing(db()) as connection:
         connection.execute("DELETE FROM payout_requisites WHERE user_id = ? AND currency = ?", (user_id, currency))
@@ -520,6 +539,25 @@ def mark_deal_transferred(tag: str) -> tuple[bool, str, Deal | None]:
         connection.execute("UPDATE deals SET status = 'transferred' WHERE tag = ?", (tag,))
         connection.commit()
     return True, "ok", find_deal(tag)
+
+
+def cancel_paid_deal(tag: str, buyer_id: int) -> tuple[bool, str, Deal | None]:
+    deal = find_deal(tag)
+    if not deal:
+        return False, "deal_not_found", None
+    if deal.status not in ("paid", "transferred"):
+        return False, "not_paid", deal
+    add_balance(buyer_id, deal.amount, deal.currency, reason="deal_refund", deal_tag=deal.tag)
+    with closing(db()) as connection:
+        connection.execute("UPDATE deals SET status = 'cancelled' WHERE tag = ?", (tag,))
+        connection.commit()
+    return True, "ok", find_deal(tag)
+
+
+def deal_timer(tag: str) -> int | None:
+    with closing(db()) as connection:
+        row = connection.execute("SELECT CAST((julianday('now') - julianday(created_at)) * 86400 AS INTEGER) AS age FROM balance_history WHERE deal_tag = ? AND reason = 'deal_payment' ORDER BY id DESC LIMIT 1", (tag,)).fetchone()
+    return max(0, 1800 - int(row["age"])) if row else None
 
 
 # ---------------------------------------------------------------------------
