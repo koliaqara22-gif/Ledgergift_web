@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>LedgerGift</title>
   <link rel="icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="style.css?v=20261009g" />
+  <link rel="stylesheet" href="style.css?v=20261009h" />
   <style>
     /* Last-resort layout guards: these win over legacy card rules in all WebViews. */
     .profile-flip-wrap{width:calc(100% - 20px)!important;height:228px!important;margin:4px auto 14px!important;position:relative!important}
@@ -13,12 +13,11 @@
     .profile-flip-wrap .flip-face.profile-card{position:absolute!important;inset:0!important;width:100%!important;height:228px!important;margin:0!important;padding:19px!important;box-sizing:border-box!important}
     .profile-flip-wrap .flip-front{display:block!important}.profile-flip-wrap.flipped .flip-front{display:none!important}
     .profile-flip-wrap .flip-back{display:none!important}.profile-flip-wrap.flipped .flip-back{display:block!important}
-    .profile-flip-wrap .profile-chip{position:absolute!important;z-index:3!important;top:auto!important;left:auto!important;right:18px!important;bottom:48px!important;width:40px!important;height:30px!important;border-radius:7px!important;background:linear-gradient(145deg,#fff0a0 0%,#e8bd43 38%,#a76a0e 100%)!important;box-shadow:inset 0 0 0 1px rgba(101,61,0,.45),0 2px 4px rgba(0,0,0,.22)!important}
-    .profile-flip-wrap .profile-chip:before{content:""!important;position:absolute!important;left:3px!important;right:3px!important;top:4px!important;height:6px!important;border-radius:5px!important;background:linear-gradient(90deg,rgba(255,255,255,.78),rgba(255,255,255,0))!important}
-    .profile-flip-wrap .profile-chip:after{content:""!important;position:absolute!important;inset:0!important;background:linear-gradient(90deg,transparent 27%,rgba(103,63,0,.5) 28% 31%,transparent 32% 66%,rgba(103,63,0,.5) 67% 70%,transparent 71%),linear-gradient(transparent 43%,rgba(103,63,0,.48) 44% 52%,transparent 53%)!important}
+    .profile-flip-wrap .profile-chip{position:absolute!important;z-index:3!important;top:auto!important;left:auto!important;right:12px!important;bottom:42px!important;width:52px!important;height:39px!important;object-fit:contain!important;filter:drop-shadow(0 3px 4px rgba(0,0,0,.22))!important}
     .profile-flip-wrap .flip-front #cardPalette{position:absolute!important;z-index:8!important;top:16px!important;left:auto!important;right:18px!important;bottom:auto!important;display:grid!important;place-items:center!important;margin:0!important}
     .profile-flip-wrap .card-turn{position:absolute!important;z-index:8!important;display:grid!important;place-items:center!important;top:auto!important;left:auto!important;right:18px!important;bottom:15px!important;width:40px!important;height:25px!important;padding:0!important;border:1px solid rgba(255,255,255,.45)!important;border-radius:8px!important;background:linear-gradient(145deg,rgba(52,64,91,.9),rgba(17,21,37,.92))!important;color:#fff!important;font:700 17px/1 sans-serif!important;box-shadow:inset 0 1px rgba(255,255,255,.16),0 2px 5px rgba(0,0,0,.2)!important;white-space:normal!important}
     .profile-flip-wrap .flip-front .pf-person{margin-top:28px!important}.profile-flip-wrap .flip-front>small{margin-top:28px!important}.profile-flip-wrap .flip-front>strong{font-size:28px!important}
+    .profile-flip-wrap .card-back-stats,.profile-flip-wrap .card-back-stats div,.profile-flip-wrap .card-back-stats span,.profile-flip-wrap .card-back-stats b{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;outline:0!important}.profile-flip-wrap .card-back-stats{margin-top:22px!important}.profile-flip-wrap .card-back-stats span{color:rgba(231,241,255,.76)!important;font-size:8px!important;letter-spacing:0!important}.profile-flip-wrap .card-back-stats b{color:#fff!important;font-size:21px!important}
     .profile-flip-wrap .card-footer{left:20px!important;right:20px!important;bottom:15px!important}
     .profile-flip-wrap.flipped .card-footer{bottom:11px!important}
     body.light-theme .lang-row{background:#fff!important;color:#151824!important;border-color:rgba(21,32,52,.16)!important}
