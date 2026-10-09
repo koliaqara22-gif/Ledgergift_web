@@ -11,7 +11,7 @@ import re
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 import aiohttp
@@ -169,6 +169,33 @@ async def set_language(body: LanguageIn, user: dict = Depends(current_user)) -> 
 async def get_profile(user: dict = Depends(current_user)) -> dict:
     uid = int(user["id"])
     return profile_payload(uid, user.get("username", ""), db.get_user_lang(uid))
+
+
+@app.get("/api/profile/photo")
+async def get_profile_photo(user: dict = Depends(current_user)) -> Response:
+    """Proxy the signed-in user's Telegram avatar without exposing the bot token."""
+    if not BOT_TOKEN:
+        raise HTTPException(status_code=404, detail="photo_unavailable")
+    timeout = aiohttp.ClientTimeout(total=8)
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getUserProfilePhotos", params={"user_id": int(user["id"]), "limit": 1}) as result:
+                payload = await result.json()
+            photos = payload.get("result", {}).get("photos", []) if payload.get("ok") else []
+            if not photos:
+                raise HTTPException(status_code=404, detail="photo_unavailable")
+            file_id = photos[0][-1].get("file_id", "")
+            async with session.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getFile", params={"file_id": file_id}) as result:
+                file_payload = await result.json()
+            file_path = file_payload.get("result", {}).get("file_path", "") if file_payload.get("ok") else ""
+            if not file_path:
+                raise HTTPException(status_code=404, detail="photo_unavailable")
+            async with session.get(f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}") as image_result:
+                image = await image_result.read()
+                content_type = image_result.headers.get("Content-Type", "image/jpeg")
+        return Response(content=image, media_type=content_type, headers={"Cache-Control": "private, max-age=300"})
+    except aiohttp.ClientError:
+        raise HTTPException(status_code=404, detail="photo_unavailable")
 
 
 @app.get("/api/balances")
