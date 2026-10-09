@@ -338,6 +338,8 @@
   function renderCurrencyBalance(data, selectedCurrency, motion) {
     const currencies = state.boot.currencies || [];
     const selected = currencies.indexOf(selectedCurrency) >= 0 ? selectedCurrency : (currencies[0] || "Stars");
+    const selectedIndex = Math.max(0, currencies.indexOf(selected));
+    const nextCurrency = currencies[(selectedIndex + 1) % currencies.length] || selected;
     const amount = Number((data.balances || {})[selected] || 0);
     const cardClass = String(selected).toLowerCase();
     const tabs = currencies.map(function (currency) {
@@ -346,13 +348,13 @@
     view.innerHTML =
       '<section class="pad fade">' + header(t("balance_title"), icon("wallet")) +
         '<div class="currency-tabs" role="tablist">' + tabs + '</div>' +
-        '<article class="currency-showcase currency-' + esc(cardClass) + (motion ? ' currency-enter-' + esc(motion) : '') + '">' +
+        '<div class="currency-deck"><div class="currency-deck-underlay currency-' + esc(String(nextCurrency).toLowerCase()) + '" aria-hidden="true"></div><article class="currency-showcase currency-' + esc(cardClass) + (motion ? ' currency-enter-' + esc(motion) : '') + '">' +
           '<i class="currency-orbit orbit-one"></i><i class="currency-orbit orbit-two"></i>' +
           '<div class="currency-showcase-head"><span class="currency-showcase-name">' + currencyIcon(selected) + '<b>' + esc(currencyLabel(selected)) + '</b></span><span>LedgerGift</span></div>' +
           '<div class="currency-balance-label">' + esc(t("balance_title")) + '</div>' +
           '<strong>' + esc(fmt(amount)) + '<small>' + esc(selected) + '</small></strong>' +
           '<div class="currency-showcase-foot"><span>LEDGERGIFT • SECURE WALLET</span><i class="card-chip" aria-hidden="true"></i></div>' +
-        '</article>' + currencyDots(currencies, selected, "currency-dot") +
+        '</article></div>' + currencyDots(currencies, selected, "currency-dot") +
         '<div class="wallet-actions currency-actions">' +
           '<button class="btn primary" data-act="topup">' + icon("wallet") + esc(t("b_topup")) + '</button>' +
           '<button class="btn ghost" data-act="withdraw">' + icon("withdraw") + esc(t("b_withdraw")) + '</button>' +
@@ -390,13 +392,20 @@
 
   function bindCardSwipe(card, currencies, selected, onSelect) {
     if (!card) return;
-    let startX = null, locked = false;
-    card.addEventListener("touchstart", function (event) { startX = event.touches[0].clientX; }, { passive: true });
-    card.addEventListener("touchend", function (event) {
-      if (startX === null || locked) return;
-      const delta = event.changedTouches[0].clientX - startX;
-      startX = null;
-      if (Math.abs(delta) < 36) return;
+    let startX = null, delta = 0, dragging = false, locked = false;
+    const move = function (x) {
+      if (!dragging || locked) return;
+      delta = x - startX;
+      const bounded = Math.max(-150, Math.min(150, delta));
+      card.classList.add("currency-dragging");
+      card.style.transform = "perspective(820px) translateX(" + bounded + "px) rotateY(" + (-bounded / 12) + "deg) scale(" + (1 - Math.min(Math.abs(bounded) / 1800, .07)) + ")";
+    };
+    const finish = function () {
+      if (!dragging || locked) return;
+      dragging = false;
+      card.classList.remove("currency-dragging");
+      card.style.transform = "";
+      if (Math.abs(delta) < 45) return;
       const current = Math.max(0, currencies.indexOf(selected));
       const next = delta < 0 ? Math.min(currencies.length - 1, current + 1) : Math.max(0, current - 1);
       if (next !== current) {
@@ -405,7 +414,11 @@
         card.classList.add("currency-leave-" + direction);
         setTimeout(function () { onSelect(currencies[next], direction); }, 165);
       }
-    }, { passive: true });
+    };
+    card.addEventListener("pointerdown", function (event) { if (event.pointerType === "mouse" && event.button !== 0) return; startX = event.clientX; delta = 0; dragging = true; try { card.setPointerCapture(event.pointerId); } catch (e) {} });
+    card.addEventListener("pointermove", function (event) { move(event.clientX); });
+    card.addEventListener("pointerup", finish);
+    card.addEventListener("pointercancel", finish);
   }
 
   routes.balance = async function () {
@@ -432,7 +445,7 @@
       const kind = crypto ? t("requisites_wallet") : (stars ? t("requisites_username") : t("requisites_card"));
       const raw = item ? item.value : "";
       const digits = String(raw).replace(/\D/g, "");
-      const preview = fiat ? (digits ? "•••• " + digits.slice(-4) : "•••• •••• •••• ••••") : (raw || (stars ? "@username" : "UQ…"));
+      const preview = fiat ? (digits ? (digits.slice(0, 4) + " •••• •••• ••••") : "•••• •••• •••• ••••") : (raw || (stars ? "@username" : "UQ…"));
       const tabs = currencies.map(function (c) { return '<button class="currency-tab' + (c === currency ? ' active' : '') + '" data-withdraw-currency="' + esc(c) + '">' + currencyIcon(c) + '<span>' + esc(currencyLabel(c)) + '</span></button>'; }).join("");
       const old = document.getElementById("sheet"); if (old) old.remove();
       const selfUsername = "@" + (state.boot.me.username || "username");
@@ -442,7 +455,7 @@
       document.getElementById("sheet").classList.add("withdraw-sheet");
       document.querySelectorAll("[data-withdraw-currency]").forEach(function (button) { button.addEventListener("click", function () { draw(button.getAttribute("data-withdraw-currency")); }); });
       const req = document.getElementById("withdrawRequisite"), recipient = document.getElementById("withdrawRecipient"), amountField = document.getElementById("withdrawAmount");
-      const sync = function () { const value = req ? req.value.trim() : (recipient ? recipient.value.trim() : ""); const num = value.replace(/\D/g, ""); const shown = stars ? (value || "@username") : (fiat ? (num ? "•••• " + num.slice(-4) : "•••• •••• •••• ••••") : (value || "UQ…")); if (document.getElementById("withdrawPreview")) document.getElementById("withdrawPreview").textContent = shown; document.getElementById("withdrawTarget").textContent = shown; const amount = Number(amountField.value || 0); document.getElementById("withdrawSummary").textContent = amount > 0 ? fmt(amount) + " " + currency : "—"; };
+      const sync = function () { const value = req ? req.value.trim() : (recipient ? recipient.value.trim() : ""); const num = value.replace(/\D/g, ""); const shown = stars ? (value || "@username") : (fiat ? (num ? (num.slice(0, 4) + " •••• •••• ••••") : "•••• •••• •••• ••••") : (value || "UQ…")); if (document.getElementById("withdrawPreview")) document.getElementById("withdrawPreview").textContent = shown; document.getElementById("withdrawTarget").textContent = shown; const amount = Number(amountField.value || 0); document.getElementById("withdrawSummary").textContent = amount > 0 ? fmt(amount) + " " + currency : "—"; };
       if (req) { if (fiat) req.addEventListener("input", function () { this.value = this.value.replace(/\D/g, "").slice(0, 20).replace(/(.{4})/g, "$1 ").trim(); sync(); }); else req.addEventListener("input", sync); }
       if (recipient) recipient.addEventListener("input", function () { localStorage.setItem("lg-stars-receiver", recipient.value.trim()); sync(); });
       document.querySelectorAll("[data-recipient]").forEach(function (button) { button.addEventListener("click", function () { localStorage.setItem("lg-stars-recipient", button.getAttribute("data-recipient")); draw(currency); }); });
@@ -473,13 +486,15 @@
       const renderWalletDeck = function (selectedCurrency, motion) {
         const currencies = state.boot.currencies || [];
         const selected = currencies.indexOf(selectedCurrency) >= 0 ? selectedCurrency : (currencies[0] || "TON");
+        const selectedIndex = Math.max(0, currencies.indexOf(selected));
+        const nextCurrency = currencies[(selectedIndex + 1) % currencies.length] || selected;
         const item = data.items[selected];
         const amount = Number((balances.balances || {})[selected] || 0);
         const tabs = currencies.map(function (currency) { return '<button class="currency-tab' + (currency === selected ? ' active' : '') + '" data-wallet-currency="' + esc(currency) + '">' + currencyIcon(currency) + '<span>' + esc(currencyLabel(currency)) + '</span></button>'; }).join("");
         view.innerHTML = '<section class="pad fade">' + header(t("wallets"), icon("wallet")) +
           (data.enabled ? '<div class="wallet-intro">' + esc(t("wallets_hint")) + '</div>' : '<div class="card neg">' + esc(t("requisites_unavailable")) + '</div>') +
           '<div class="currency-tabs" role="tablist">' + tabs + '</div>' +
-          '<article class="currency-showcase currency-' + esc(String(selected).toLowerCase()) + (motion ? ' currency-enter-' + esc(motion) : '') + '"><i class="currency-orbit orbit-one"></i><i class="currency-orbit orbit-two"></i><div class="currency-showcase-head"><span class="currency-showcase-name">' + currencyIcon(selected) + '<b>' + esc(currencyLabel(selected)) + '</b></span><span>LedgerGift</span></div><div class="currency-balance-label">' + esc(t("current_balance")) + '</div><strong>' + esc(fmt(amount)) + '<small>' + esc(selected) + '</small></strong><div class="currency-showcase-foot"><span>' + esc(item ? t("requisites_saved") : t("requisites_empty")) + '</span><i class="card-chip" aria-hidden="true"></i></div></article>' + currencyDots(currencies, selected, "wallet-dot") +
+          '<div class="currency-deck"><div class="currency-deck-underlay currency-' + esc(String(nextCurrency).toLowerCase()) + '" aria-hidden="true"></div><article class="currency-showcase currency-' + esc(String(selected).toLowerCase()) + (motion ? ' currency-enter-' + esc(motion) : '') + '"><i class="currency-orbit orbit-one"></i><i class="currency-orbit orbit-two"></i><div class="currency-showcase-head"><span class="currency-showcase-name">' + currencyIcon(selected) + '<b>' + esc(currencyLabel(selected)) + '</b></span><span>LedgerGift</span></div><div class="currency-balance-label">' + esc(t("current_balance")) + '</div><strong>' + esc(fmt(amount)) + '<small>' + esc(selected) + '</small></strong><div class="currency-showcase-foot"><span>' + esc(item ? t("requisites_saved") : t("requisites_empty")) + '</span><i class="card-chip" aria-hidden="true"></i></div></article></div>' + currencyDots(currencies, selected, "wallet-dot") +
           (data.enabled ? '<button class="btn primary block wallet-requisite-btn" data-add-requisites>' + esc(item ? t("wallets") : t("how_requisites")) + '</button>' : '') +
           '</section>';
         bindCurrencyRail(view.querySelector(".currency-tabs"));
