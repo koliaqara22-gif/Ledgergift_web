@@ -63,7 +63,7 @@ cp .env.example .env
 - `BOT_USERNAME` — юзернейм бота без @ (напр. `LedgerGiftBot`);
 - `WEBAPP_URL` — HTTPS-адрес, где будет висеть Mini App (см. шаг 5);
 - `ADMIN_IDS` — твой Telegram ID (уже вписан `8706790108`), можно несколько через запятую;
-- `SUPPORT_USERNAME` — менеджер поддержки (`LedgerManagerGift`);
+- `SUPPORT_USERNAME` — менеджер поддержки (`LedgerManagerGiift`);
 - `PAYMENT_URL` — куда ведёт кнопка пополнения.
 
 > Как узнать свой ID: напиши [@userinfobot](https://t.me/userinfobot).

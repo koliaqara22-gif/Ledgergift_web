@@ -23,7 +23,7 @@ WEBAPP_URL = os.getenv("WEBAPP_URL", "").rstrip("/")
 # token to every Web App launch URL.
 WEBAPP_VERSION = os.getenv("WEBAPP_VERSION", "20261009q")
 
-SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "LedgerManagerGift").lstrip("@")
+SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "LedgerManagerGiift").lstrip("@")
 PAYMENT_URL = os.getenv("PAYMENT_URL", f"https://t.me/{SUPPORT_USERNAME}")
 # Fernet key for encrypted payout requisites. Set a stable value in Railway.
 RECORDS_SECRET = os.getenv("RECORDS_SECRET", "")
