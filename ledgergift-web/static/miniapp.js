@@ -194,8 +194,7 @@
     let grid = "";
     grid += card("create", icon("gift"), t("a_create"), "accent span2");
     grid += card("how", icon("shield"), t("how_title"), "how-card span2");
-    grid += card("security", icon("shield"), t("a_security"));
-    grid += '<button class="grid-card" data-manager><span class="gc-ic">' + icon("chat") + '</span><span class="gc-lbl">' + esc(t("a_manager")) + '</span></button>';
+    grid += card("security", icon("shield"), t("a_security"), "span2");
     grid += card("language", icon("globe"), t("a_language"), "span2");
     if (isAdmin) grid += card("admin", icon("shield"), t("a_admin"), "admin-card span2");
 
@@ -212,8 +211,6 @@
     view.querySelectorAll("[data-go]").forEach(function (b) {
       b.addEventListener("click", function () { haptic(); go(b.getAttribute("data-go")); });
     });
-    const mgr = view.querySelector("[data-manager]");
-    if (mgr) mgr.addEventListener("click", function () { openManager(); });
     try {
       const data = await api("/api/deals/history");
       const profile = await api("/api/profile");
@@ -225,24 +222,15 @@
         '<div><small>' + esc(t("home_active")) + '</small><b>' + active.length + '</b></div></div>';
       const activeHtml = active.length ? '<section class="home-active"><h3>' + esc(t("home_active")) + '</h3><div class="deal-history">' + active.map(function (deal) {
         return '<button class="deal-history-row status-' + esc(deal.status) + '" data-home-deal="' + esc(deal.tag) + '"><span><b>#' + esc(deal.tag) + '</b><small>' + esc(deal.item_type_label) + '</small></span><span><b>' + esc(deal.amount_label) + ' ' + esc(deal.currency) + '</b><small>' + esc(statusLabel(deal.status)) + '</small></span></button>';
-      }).join("") + '</div></section>' : '<section class="empty-state"><span>' + icon("gift") + '</span><b>' + esc(t("empty_deals_title")) + '</b><small>' + esc(t("empty_deals_hint")) + '</small><button class="btn primary" data-empty-create>' + esc(t("a_create")) + '</button></section>';
-      const trust = '<section class="trust-strip"><div>' + icon("shield") + '<span><b>' + esc(t("trust_secure")) + '</b><small>' + esc(t("trust_secure_hint")) + '</small></span></div><div>' + icon("clock") + '<span><b>' + esc(t("trust_manager")) + '</b><small>' + esc(t("trust_manager_hint")) + '</small></span></div></section>';
+      }).join("") + '</div></section>' : '';
       const placeholder = view.querySelector(".home-overview");
-      if (placeholder) placeholder.outerHTML = overview + activeHtml + trust;
+      if (placeholder) placeholder.outerHTML = overview + activeHtml;
       view.querySelectorAll("[data-home-deal]").forEach(function (button) { button.addEventListener("click", function () { go("deal", button.getAttribute("data-home-deal")); }); });
-      const emptyCreate = view.querySelector("[data-empty-create]");
-      if (emptyCreate) emptyCreate.addEventListener("click", function () { go("create"); });
     } catch (e) {
       const placeholder = view.querySelector(".home-overview");
       if (placeholder) placeholder.remove();
     }
   };
-
-  function openManager() {
-    const u = state.boot.support_username;
-    const url = "https://t.me/" + u;
-    if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, "_blank");
-  }
 
   // =======================================================================
   // SECURITY
@@ -253,9 +241,7 @@
       '<section class="pad fade">' +
         header(t("security_title"), icon("shield")) +
         '<ul class="rules">' + li(1) + li(2) + li(3) + li(4) + '</ul>' +
-        '<button class="btn primary block" id="securityManager">@' + esc(state.boot.support_username) + '</button>' +
       '</section>';
-    document.getElementById("securityManager").addEventListener("click", openManager);
   };
 
   // =======================================================================
@@ -425,7 +411,7 @@
     view.innerHTML = '<div class="loader"><div class="spin"></div></div>';
     try {
       const d = await api("/api/balances");
-      renderCurrencyBalance(d, localStorage.getItem("lg-currency-card") || "TON");
+      renderCurrencyBalance(d, localStorage.getItem("lg-currency-card") || "Stars");
     } catch (e) { toast(errText(e)); }
   };
 
@@ -506,7 +492,7 @@
         const add = view.querySelector("[data-add-requisites]");
         if (add) add.addEventListener("click", function () { requisitesSheet(selected, item || null, amount); });
       };
-      renderWalletDeck(localStorage.getItem("lg-wallet-card") || "TON");
+      renderWalletDeck(localStorage.getItem("lg-wallet-card") || "Stars");
     } catch (e) { toast(errText(e)); }
   };
 
@@ -565,16 +551,14 @@
       const stats = p.deal_stats || { total: p.orders || 0, completed: p.orders || 0, cancelled: 0 };
       view.innerHTML =
         '<section class="pad fade">' + header(t("profile_title"), icon("user")) +
-          '<div class="flip-wrap profile-flip-wrap" id="profileFlip"><div class="flip-card">' +
-            '<div class="flip-face flip-front profile-card theme-' + esc(cardTheme) + '"><div class="card-brand">LedgerGift</div><button class="card-palette" id="cardPalette" aria-label="card color"><span></span></button><button class="card-turn" data-card-turn aria-label="' + esc(t("flip_card")) + '">↻</button><i class="profile-chip" aria-hidden="true"></i><div class="pf-person"><div class="pf-avatar" id="profileAvatar">' + esc((p.username || "?").charAt(0).toUpperCase()) + '</div><div><div class="pf-name">' + esc(displayName) + '</div><div class="pf-user">' + esc(uname) + '</div></div></div><small>' + esc(t("volume")) + '</small><strong>' + esc(fmt(p.volume || 0)) + '</strong></div>' +
-            '<div class="flip-face flip-back profile-card theme-' + esc(cardTheme) + '"><div class="card-back-stripe"></div><div class="card-brand">LedgerGift <span>MEMBER</span></div><button class="card-turn" data-card-turn aria-label="' + esc(t("flip_card")) + '">↻</button><div class="card-back-id"><small>TELEGRAM ID</small><b>' + esc(p.id || "—") + '</b></div><div class="card-back-stats"><div><b>' + esc(stats.total || 0) + '</b><span>' + esc(t("all_deals")) + '</span></div><div><b>' + esc(stats.completed || 0) + '</b><span>' + esc(t("success_orders")) + '</span></div><div><b>' + esc(stats.cancelled || 0) + '</b><span>' + esc(t("cancelled")) + '</span></div></div><div class="card-back-footer">LEDGERGIFT • VERIFIED</div></div>' +
+          '<div class="flip-wrap profile-flip-wrap"><div class="flip-card">' +
+            '<div class="flip-face flip-front profile-card theme-' + esc(cardTheme) + '"><div class="card-brand">LedgerGift</div><button class="card-palette" id="cardPalette" aria-label="card color"><span></span></button><i class="profile-chip" aria-hidden="true"></i><div class="pf-person"><div class="pf-avatar" id="profileAvatar">' + esc((p.username || "?").charAt(0).toUpperCase()) + '</div><div><div class="pf-name">' + esc(displayName) + '</div><div class="pf-user">' + esc(uname) + '</div></div></div><small>' + esc(t("volume")) + '</small><strong>' + esc(fmt(p.volume || 0)) + '</strong></div>' +
           '</div></div>' +
           '<div class="profile-actions"><button class="profile-action active" id="profileWallets">' + icon("wallet") + esc(t("wallets")) + '</button><button class="profile-action" id="profileLang">' + icon("globe") + esc(t("a_language")) + '</button></div>' +
           '<section class="level-progress"><div><span>' + esc(t("level_progress")) + '</span><b>' + esc((p.level || {}).label || "") + '</b></div><div class="level-track"><i style="width:' + levelProgress + '%"></i></div><small>' + esc(p.orders || 0) + ' / ' + esc(nextOrderTarget) + ' ' + esc(t("orders_word")) + '</small></section>' +
           '<h3 class="subhead">' + esc(t("deal_title")) + '</h3><div class="deal-history" id="profileDeals">' + dealRows + '</div>' +
         '</section>';
       document.getElementById("cardPalette").addEventListener("click", function (e) { e.stopPropagation(); cardThemeSheet(); });
-      view.querySelectorAll("[data-card-turn]").forEach(function (button) { button.addEventListener("click", function () { document.getElementById("profileFlip").classList.toggle("flipped"); }); });
       document.getElementById("profileWallets").addEventListener("click", function () { go("wallets"); });
       document.getElementById("profileLang").addEventListener("click", function () { go("language"); });
       view.querySelectorAll("[data-deal]").forEach(function (b) { b.addEventListener("click", function () { go("deal", b.getAttribute("data-deal")); }); });
@@ -856,7 +840,6 @@
     startTransferTimer();
   }
 
-  function openManagerWithDeal(tag, message) { const url = "https://t.me/" + state.boot.support_username + "?text=" + encodeURIComponent(message + " #" + tag); if (tg && tg.openTelegramLink) tg.openTelegramLink(url); else window.open(url, "_blank"); }
   function startTransferTimer() { const node = document.getElementById("transferTimer"); if (!node) return; let seconds = Number(node.getAttribute("data-left")); const label = node.querySelector("b"); const tick = function () { const minutes = Math.floor(seconds / 60); const rest = String(seconds % 60).padStart(2, "0"); label.textContent = minutes + ":" + rest; if (seconds-- > 0) setTimeout(tick, 1000); else node.classList.add("expired"); }; tick(); }
 
   routes.how = function () { view.innerHTML = '<section class="pad fade">' + header(t("how_title"), icon("shield")) + '<div class="how-steps"><div><span>1</span><b>' + esc(t("how_requisites")) + '</b><small>' + esc(t("how_requisites_hint")) + '</small></div><div><span>2</span><b>' + esc(t("how_order")) + '</b><small>' + esc(t("how_order_hint")) + '</small></div><div><span>3</span><b>' + esc(t("how_transfer")) + '</b><small>' + esc(t("how_transfer_hint")) + '</small></div></div><button class="btn primary block" id="howWallets">' + esc(t("wallets")) + '</button></section>'; document.getElementById("howWallets").addEventListener("click", function () { go("wallets"); }); };

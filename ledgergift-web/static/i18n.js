@@ -142,3 +142,15 @@ Object.assign(window.I18N.zh, {to_self:"自己",to_other:"他人"});
 Object.assign(window.I18N.ar, {to_self:"لي",to_other:"لشخص آخر"});
 Object.assign(window.I18N.ja, {to_self:"自分へ",to_other:"他の人へ"});
 Object.assign(window.I18N.kk, {to_self:"Өзіме",to_other:"Басқаға"});
+// On the website the seller transfers the gift directly to the buyer.
+Object.assign(window.I18N.ru, {
+  sec_1:"Передавайте подарок покупателю только после оплаты сделки.",
+  sec_2:"Сверяйте сумму, тег сделки и никнейм покупателя.",
+  sec_3:"Не передавайте подарок до появления статуса об оплате.",
+  sec_4:"После передачи покупатель подтверждает получение.",
+  how_transfer:"Передайте подарок покупателю",
+  how_transfer_hint:"После оплаты вернитесь в чат с покупателем и передайте подарок.",
+  transfer_deadline:"Передайте подарок покупателю в течение",
+  st_paid:"Оплачена, ждёт передачи подарка"
+  ,user_id:"ID пользователя"
+});

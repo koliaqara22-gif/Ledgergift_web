@@ -171,7 +171,7 @@ def bootstrap(lg_session: str | None = Cookie(default=None)):
         },
         "languages": {"ru": "🇷🇺 Русский", "en": "🇬🇧 English", "zh": "中文", "ar": "العربية", "ja": "日本語", "kk": "Қазақша"},
         "me": {"id": user["id"], "username": user["name"], "first_name": user["name"], "lang": "ru", "is_admin": False, "is_owner": False},
-        "balances": {"Stars": 20000, "TON": 0, "USDT": 0, "RUB": 0, "UAH": 0, "USD": 0, "BYN": 0, "KZT": 0, "UZS": 0},
+        "balances": {"Stars": 0, "TON": 0, "USDT": 0, "RUB": 0, "UAH": 0, "USD": 0, "BYN": 0, "KZT": 0, "UZS": 0},
         "requisites_enabled": True,
         "profile": profile_for_web(user),
     }
@@ -189,7 +189,7 @@ def mini_profile(lg_session: str | None = Cookie(default=None)):
 @app.get("/api/balances")
 def mini_balances(lg_session: str | None = Cookie(default=None)):
     user_from_session(lg_session)
-    return {"balances": {"Stars": 20000, "TON": 0, "USDT": 0, "RUB": 0, "UAH": 0, "USD": 0, "BYN": 0, "KZT": 0, "UZS": 0}, "history": []}
+    return {"balances": {"Stars": 0, "TON": 0, "USDT": 0, "RUB": 0, "UAH": 0, "USD": 0, "BYN": 0, "KZT": 0, "UZS": 0}, "history": []}
 
 
 @app.get("/api/requisites")
