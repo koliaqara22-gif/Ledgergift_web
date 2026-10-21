@@ -290,14 +290,15 @@ body.light-theme .topbar,body.light-theme .tabbar{background:rgba(255,255,255,.8
   .pad{width:100%;max-width:1180px;margin:0 auto;padding:32px 34px 42px!important}
   .hero{max-width:700px;margin:0 auto;padding:30px 8px 34px}
   .hero-title{font-size:30px}.hero-sub{max-width:520px;font-size:15px}
-  .grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
   .grid-card{min-height:142px;padding:28px 18px}.grid-card.span2{grid-column:span 2}
   .grid-card.accent{min-height:142px}.grid-card.how-card{min-height:72px}
   .home-overview{gap:14px;margin:6px 0 18px}.home-overview>div{padding:17px 16px}.home-overview small{font-size:11px}.home-overview b{font-size:16px}
-  .currency-tabs{margin-top:3px}.currency-deck,.currency-tabs,.currency-dots,.currency-actions,.wallet-requisite-btn,.balance-card{max-width:760px;margin-left:auto;margin-right:auto}
+  .currency-tabs{margin-top:3px}.currency-deck,.currency-tabs,.currency-dots,.currency-actions,.balance-card{max-width:1080px;margin-left:auto;margin-right:auto}
+  .wallet-requisite-btn{display:block!important;width:min(100%,1080px)!important;max-width:1080px!important;margin:12px auto 0!important}
   .currency-showcase{min-height:244px;padding:26px;border-radius:28px}.currency-showcase-name{font-size:19px}.currency-balance-label{margin-top:52px;font-size:12px}.currency-showcase strong{font-size:42px}.currency-showcase-foot{right:26px;bottom:21px;left:26px}
-  .profile-flip-wrap,.profile-actions,.level-progress,.deal-history,.subhead{max-width:760px;margin-left:auto;margin-right:auto}
-  .vhead{max-width:760px;margin-left:auto;margin-right:auto}.wallet-intro{max-width:760px;margin-left:auto;margin-right:auto}
-  .rules,.how-steps,.type-grid,.cur-grid,.step-label,.field,.field-err,.link-box,.deal-timeline,.deal-actions{max-width:760px;margin-left:auto;margin-right:auto}
+  .profile-flip-wrap,.profile-actions,.level-progress,.deal-history,.subhead{max-width:900px;margin-left:auto;margin-right:auto}
+  .vhead{max-width:1080px;margin-left:auto;margin-right:auto}.wallet-intro{max-width:1080px;margin-left:auto;margin-right:auto}
+  .rules,.how-steps,.type-grid,.cur-grid,.step-label,.field,.field-err,.link-box,.deal-timeline,.deal-actions{max-width:900px;margin-left:auto;margin-right:auto}
   .type-grid,.cur-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.sheet{max-width:640px!important}
 }
