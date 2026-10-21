@@ -165,12 +165,10 @@ def write_audit(conn: sqlite3.Connection, actor_id: int, action: str, target: st
     conn.execute("INSERT INTO audit_log(actor_id,action,target,created_at) VALUES(?,?,?,?)", (actor_id, action, target, now()))
 
 
-def require_admin(lg_session: str | None, lg_admin: str | None) -> sqlite3.Row:
+def require_admin(lg_session: str | None, _lg_admin: str | None = None) -> sqlite3.Row:
     user = user_from_session(lg_session)
     if not is_admin(user):
         raise HTTPException(403, "admin_required")
-    if admin_sessions.get(lg_admin or "") != user["id"]:
-        raise HTTPException(403, "admin_locked")
     return user
 
 
@@ -434,22 +432,6 @@ def mini_notify_seller(tag: str, lg_session: str | None = Cookie(default=None)):
 # ---- Administration -----------------------------------------------------
 # The owner nickname and panel password live in Render environment variables,
 # never in the repository.  The owner can then assign admin rights by nickname.
-@app.post("/api/admin/unlock")
-def admin_unlock(body: dict, response: Response, lg_session: str | None = Cookie(default=None)):
-    user = user_from_session(lg_session)
-    if not is_admin(user):
-        raise HTTPException(403, "admin_required")
-    configured_password = os.getenv("ADMIN_PANEL_PASSWORD", "")
-    if not configured_password:
-        raise HTTPException(503, "admin_not_configured")
-    if not hmac.compare_digest(str(body.get("password", "")), configured_password):
-        raise HTTPException(401, "invalid_admin_password")
-    token = secrets.token_urlsafe(32)
-    admin_sessions[token] = user["id"]
-    response.set_cookie("lg_admin", token, httponly=True, samesite="lax", secure=os.getenv("COOKIE_SECURE", "0") == "1", max_age=60 * 60 * 8)
-    return {"ok": True, "is_owner": is_owner(user)}
-
-
 @app.get("/api/admin/overview")
 def admin_overview(lg_session: str | None = Cookie(default=None), lg_admin: str | None = Cookie(default=None)):
     user = require_admin(lg_session, lg_admin)
@@ -458,6 +440,38 @@ def admin_overview(lg_session: str | None = Cookie(default=None), lg_admin: str 
         recent = conn.execute("SELECT action,target,created_at FROM audit_log ORDER BY id DESC LIMIT 20").fetchall()
         deal_count = conn.execute("SELECT count(*) AS count FROM deals WHERE status != 'completed'").fetchone()["count"]
     return {"owner": is_owner(user), "admins": [dict(row) for row in admins], "active_deals": deal_count, "logs": [dict(row) for row in recent]}
+
+
+@app.get("/api/admin/deals")
+def admin_deals(lg_session: str | None = Cookie(default=None), lg_admin: str | None = Cookie(default=None)):
+    require_admin(lg_session, lg_admin)
+    with db() as conn:
+        rows = conn.execute("SELECT * FROM deals ORDER BY id DESC LIMIT 100").fetchall()
+    return {"deals": [mini_deal(row) for row in rows]}
+
+
+@app.get("/api/admin/audit")
+def admin_audit(lg_session: str | None = Cookie(default=None), lg_admin: str | None = Cookie(default=None)):
+    require_admin(lg_session, lg_admin)
+    with db() as conn:
+        rows = conn.execute("SELECT actor_id,action,target,created_at FROM audit_log ORDER BY id DESC LIMIT 100").fetchall()
+    return {"items": [dict(row) for row in rows]}
+
+
+@app.delete("/api/admin/admins/{user_id}")
+def admin_revoke(user_id: int, lg_session: str | None = Cookie(default=None), lg_admin: str | None = Cookie(default=None)):
+    owner = require_admin(lg_session, lg_admin)
+    if not is_owner(owner):
+        raise HTTPException(403, "owner_required")
+    with db() as conn:
+        target = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not target:
+            raise HTTPException(404, "user_not_found")
+        if is_owner(target):
+            raise HTTPException(409, "owner_cannot_be_removed")
+        conn.execute("DELETE FROM admins WHERE user_id = ?", (user_id,))
+        write_audit(conn, owner["id"], "admin_revoked", "@" + target["name"])
+    return {"ok": True}
 
 
 @app.post("/api/admin/admins")

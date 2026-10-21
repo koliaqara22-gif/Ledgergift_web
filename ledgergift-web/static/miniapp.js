@@ -1100,37 +1100,31 @@
     } catch (e) { out.innerHTML = '<p class="neg">' + esc(errText(e)) + '</p>'; }
   }
 
-  // Compact web administration panel.  Roles are checked again by the API;
-  // this client only renders the controls after a successful unlock.
+  // Website administration uses the account's server-side role. There is no
+  // second shared password: the owner assigns access by nickname.
   routes.admin = function () {
     if (!state.boot.me.is_admin) { go("home"); return; }
     view.innerHTML = '<section class="pad fade admin-web">' + header("Админка", icon("shield")) +
-      '<div id="adminUnlock" class="card"><p class="muted">Введите пароль панели управления.</p>' +
-      '<input class="field" id="adminPassword" type="password" placeholder="Пароль админки" />' +
-      '<button class="btn primary block" id="adminUnlockBtn">Открыть админку</button></div><div id="adminContent"></div></section>';
-    document.getElementById("adminUnlockBtn").addEventListener("click", async function () {
-      try {
-        await api("/api/admin/unlock", { method: "POST", body: { password: document.getElementById("adminPassword").value } });
-        renderWebAdmin();
-      } catch (e) { toast(errText(e)); }
-    });
+      '<div id="adminContent"><div class="loader"><div class="spin"></div></div></div></section>';
+    renderWebAdmin();
   };
 
   async function renderWebAdmin() {
-    const unlock = document.getElementById("adminUnlock");
     const holder = document.getElementById("adminContent");
-    if (unlock) unlock.remove();
+    if (!holder) return;
     holder.innerHTML = '<div class="loader"><div class="spin"></div></div>';
     try {
       const d = await api("/api/admin/overview");
-      const admins = d.admins.length ? d.admins.map(function (a) { return '<li>@' + esc(a.name) + '</li>'; }).join("") : '<li class="muted">Пока нет назначенных администраторов</li>';
-      holder.innerHTML = '<div class="card"><b>Активных сделок: ' + esc(d.active_deals) + '</b><p class="muted">Баланс можно пополнить только из админки. Автоматических пополнений здесь нет.</p></div>' +
-        (d.owner ? '<div class="card"><h3>Выдать админку</h3><label class="fld"><span>Ник пользователя</span><input class="field" id="grantNick" placeholder="@username" /></label><button class="btn primary block" id="grantAdmin">Выдать доступ</button><h3>Администраторы</h3><ul class="admin-names">' + admins + '</ul></div>' : '') +
-        '<div class="card"><h3>Изменить баланс</h3><label class="fld"><span>Ник пользователя</span><input class="field" id="balanceNick" placeholder="@username" /></label><label class="fld"><span>Сумма (можно с минусом)</span><input class="field" id="balanceAmount" inputmode="decimal" placeholder="100" /></label><label class="fld"><span>Валюта</span><select class="field" id="balanceCurrency">' + state.boot.currencies.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join("") + '</select></label><button class="btn primary block" id="balanceSave">Сохранить баланс</button></div>' +
-        '<div class="card"><h3>Журнал</h3><div class="audit-list">' + (d.logs.length ? d.logs.map(function (log) { return '<div><b>' + esc(log.action) + '</b><small>' + esc(log.target || "—") + ' · ' + esc(log.created_at) + '</small></div>'; }).join("") : '<p class="muted">Записей ещё нет.</p>') + '</div></div>';
+      const admins = d.admins.length ? d.admins.map(function (a) { return '<li><span>@' + esc(a.name) + '</span>' + (d.owner ? '<button class="btn ghost admin-remove" data-remove-admin="' + a.id + '">Убрать</button>' : '') + '</li>'; }).join("") : '<li class="muted">Пока нет назначенных администраторов</li>';
+      holder.innerHTML = '<div class="home-overview"><div><small>Активные сделки</small><b>' + esc(d.active_deals) + '</b></div><div><small>Администраторы</small><b>' + esc(d.admins.length + (d.owner ? 1 : 0)) + '</b></div><div><small>Режим</small><b>' + (d.owner ? 'Владелец' : 'Админ') + '</b></div></div>' +
+        '<div class="card"><h3>Пополнить баланс</h3><label class="fld"><span>Ник пользователя</span><input class="field" id="balanceNick" placeholder="@username" /></label><label class="fld"><span>Сумма</span><input class="field" id="balanceAmount" inputmode="decimal" placeholder="100" /></label><label class="fld"><span>Валюта</span><select class="field" id="balanceCurrency">' + state.boot.currencies.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join("") + '</select></label><button class="btn primary block" id="balanceSave">Пополнить</button><p class="muted">Для списания укажи сумму с минусом.</p></div>' +
+        (d.owner ? '<div class="card"><h3>Выдать админку по нику</h3><label class="fld"><span>Ник зарегистрированного пользователя</span><input class="field" id="grantNick" placeholder="@username" /></label><button class="btn primary block" id="grantAdmin">Выдать админку</button><h3>Команда</h3><ul class="admin-names">' + admins + '</ul></div>' : '') +
+        '<div class="card"><h3>Сделки</h3><div id="adminDeals" class="muted">Загрузка…</div></div><div class="card"><h3>Журнал действий</h3><div class="audit-list">' + (d.logs.length ? d.logs.map(function (log) { return '<div><b>' + esc(log.action) + '</b><small>' + esc(log.target || "—") + ' · ' + esc(log.created_at) + '</small></div>'; }).join("") : '<p class="muted">Записей ещё нет.</p>') + '</div></div>';
       const grant = document.getElementById("grantAdmin");
       if (grant) grant.addEventListener("click", async function () { try { await api("/api/admin/admins", { method: "POST", body: { nickname: document.getElementById("grantNick").value } }); toast("Админка выдана"); renderWebAdmin(); } catch (e) { toast(errText(e)); } });
       document.getElementById("balanceSave").addEventListener("click", async function () { try { await api("/api/admin/balance", { method: "POST", body: { nickname: document.getElementById("balanceNick").value, amount: document.getElementById("balanceAmount").value, currency: document.getElementById("balanceCurrency").value } }); toast("Баланс обновлён"); } catch (e) { toast(errText(e)); } });
+      holder.querySelectorAll("[data-remove-admin]").forEach(function (button) { button.addEventListener("click", async function () { try { await api("/api/admin/admins/" + button.getAttribute("data-remove-admin"), { method: "DELETE" }); toast("Админка убрана"); renderWebAdmin(); } catch (e) { toast(errText(e)); } }); });
+      api("/api/admin/deals").then(function (data) { const box = document.getElementById("adminDeals"); if (box) box.innerHTML = data.deals.length ? '<div class="deal-history">' + data.deals.slice(0, 20).map(function (deal) { return '<button class="deal-history-row" data-admin-deal="' + esc(deal.tag) + '"><span><b>#' + esc(deal.tag) + '</b><small>@' + esc(deal.buyer_username) + '</small></span><span><b>' + esc(deal.amount_label) + ' ' + esc(deal.currency) + '</b><small>' + esc(statusLabel(deal.status)) + '</small></span></button>'; }).join("") + '</div>' : '<p class="muted">Сделок пока нет.</p>'; if (box) box.querySelectorAll("[data-admin-deal]").forEach(function (button) { button.addEventListener("click", function () { go("deal", button.getAttribute("data-admin-deal")); }); }); }).catch(function () {});
     } catch (e) { holder.innerHTML = '<p class="neg">' + esc(errText(e)) + '</p>'; }
   }
 
