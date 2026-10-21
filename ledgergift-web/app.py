@@ -156,6 +156,143 @@ def me(lg_session: str | None = Cookie(default=None)):
     return {"user": public_user(user_from_session(lg_session))}
 
 
+WEB_CURRENCIES = ["Stars", "TON", "USDT", "RUB", "UAH", "USD", "BYN", "KZT", "UZS"]
+web_requisites: dict[int, dict[str, dict]] = {}
+
+
+@app.get("/api/bootstrap")
+def bootstrap(lg_session: str | None = Cookie(default=None)):
+    user = user_from_session(lg_session)
+    return {
+        "brand": "LedgerGift", "bot_username": "", "miniapp_short_name": "", "support_username": "",
+        "payment_url": "", "currencies": WEB_CURRENCIES, "deal_types": {
+            "nft": {"ru": "NFT-подарок", "en": "NFT Gift"}, "stars": {"ru": "Звёзды", "en": "Telegram Stars"},
+            "username": {"ru": "NFT-username", "en": "NFT Username"}, "crypto": {"ru": "Крипта", "en": "Crypto"}, "premium": {"ru": "Telegram Premium", "en": "Telegram Premium"},
+        },
+        "languages": {"ru": "🇷🇺 Русский", "en": "🇬🇧 English", "zh": "中文", "ar": "العربية", "ja": "日本語", "kk": "Қазақша"},
+        "me": {"id": user["id"], "username": user["name"], "first_name": user["name"], "lang": "ru", "is_admin": False, "is_owner": False},
+        "balances": {"Stars": 20000, "TON": 0, "USDT": 0, "RUB": 0, "UAH": 0, "USD": 0, "BYN": 0, "KZT": 0, "UZS": 0},
+        "requisites_enabled": True,
+        "profile": profile_for_web(user),
+    }
+
+
+def profile_for_web(user: sqlite3.Row) -> dict:
+    return {"id": user["id"], "username": user["name"], "orders": 0, "rating": 0, "volume": 0, "volume_label": "0", "level": {"label": "Новичок"}, "deal_stats": {"total": 0, "completed": 0, "cancelled": 0}}
+
+
+@app.get("/api/profile")
+def mini_profile(lg_session: str | None = Cookie(default=None)):
+    return profile_for_web(user_from_session(lg_session))
+
+
+@app.get("/api/balances")
+def mini_balances(lg_session: str | None = Cookie(default=None)):
+    user_from_session(lg_session)
+    return {"balances": {"Stars": 20000, "TON": 0, "USDT": 0, "RUB": 0, "UAH": 0, "USD": 0, "BYN": 0, "KZT": 0, "UZS": 0}, "history": []}
+
+
+@app.get("/api/requisites")
+def mini_requisites(lg_session: str | None = Cookie(default=None)):
+    user = user_from_session(lg_session)
+    return {"enabled": True, "items": web_requisites.get(user["id"], {})}
+
+
+@app.put("/api/requisites")
+def mini_save_requisites(body: dict, lg_session: str | None = Cookie(default=None)):
+    user = user_from_session(lg_session)
+    currency = str(body.get("currency", ""))
+    if currency not in WEB_CURRENCIES:
+        raise HTTPException(400, "bad_currency")
+    web_requisites.setdefault(user["id"], {})[currency] = {"kind": body.get("kind", ""), "label": body.get("label", ""), "value": body.get("value", "")}
+    return {"ok": True}
+
+
+@app.delete("/api/requisites/{currency}")
+def mini_delete_requisites(currency: str, lg_session: str | None = Cookie(default=None)):
+    user = user_from_session(lg_session)
+    web_requisites.get(user["id"], {}).pop(currency, None)
+    return {"ok": True}
+
+
+@app.get("/api/deals/history")
+def mini_deals_history(lg_session: str | None = Cookie(default=None)):
+    user_from_session(lg_session)
+    return {"deals": []}
+
+
+@app.get("/api/top")
+def mini_top(lg_session: str | None = Cookie(default=None)):
+    user_from_session(lg_session)
+    return {"items": []}
+
+
+def mini_deal(row: sqlite3.Row) -> dict:
+    labels = {"nft": "NFT-подарок", "stars": "Telegram Stars", "username": "NFT-username", "crypto": "Крипта", "premium": "Telegram Premium"}
+    return {"tag": row["share_code"].upper(), "status": row["status"], "item_type": "nft", "item_type_label": labels["nft"], "item_link": row["description"] or "Telegram Gift", "stars_count": None, "amount": row["price"], "amount_label": str(row["price"]), "currency": row["currency"], "seller_id": row["seller_id"], "seller_username": "seller", "buyer_username": row["buyer_contact"].lstrip("@"), "created_at": row["created_at"], "transfer_seconds_left": None}
+
+
+@app.post("/api/deal/create")
+def mini_create_deal(body: dict, lg_session: str | None = Cookie(default=None)):
+    user = user_from_session(lg_session)
+    buyer = str(body.get("buyer_username", "")).strip().lstrip("@")
+    amount = float(body.get("amount", 0))
+    currency = str(body.get("currency", "Stars"))
+    if len(buyer) < 2 or amount <= 0 or currency not in WEB_CURRENCIES:
+        raise HTTPException(400, "bad_deal")
+    code = secrets.token_urlsafe(8).replace("-", "").replace("_", "").upper()
+    item = str(body.get("item_link", "Telegram Gift"))
+    stamp = now()
+    with db() as conn:
+        cur = conn.execute("""INSERT INTO deals(share_code,seller_id,buyer_email,buyer_contact,gift_name,description,price,currency,status,created_at,updated_at)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?)""", (code, user["id"], "", buyer, str(body.get("item_type", "NFT-подарок")), item, amount, currency, "created", stamp, stamp))
+        row = conn.execute("SELECT * FROM deals WHERE id = ?", (cur.lastrowid,)).fetchone()
+    return {"deal": mini_deal(row), "share_link": f"{os.getenv('WEB_URL', '')}/#deal_{code}".lstrip("/") or f"deal_{code}"}
+
+
+@app.get("/api/deal/{tag}")
+def mini_get_deal(tag: str, lg_session: str | None = Cookie(default=None)):
+    user = user_from_session(lg_session)
+    with db() as conn:
+        row = conn.execute("SELECT * FROM deals WHERE upper(share_code) = ?", (tag.lstrip("#").upper(),)).fetchone()
+    if not row:
+        raise HTTPException(404, "deal_not_found")
+    buyer = row["buyer_contact"].lstrip("@").lower() == user["name"].lower()
+    seller = row["seller_id"] == user["id"]
+    return {"deal": mini_deal(row), "role": {"is_buyer": buyer, "is_seller": seller, "is_staff": False, "can_pay": buyer and row["status"] == "created", "can_confirm": buyer and row["status"] in ("paid", "transferred")}, "support_username": ""}
+
+
+@app.post("/api/deal/{tag}/pay")
+def mini_pay_deal(tag: str, lg_session: str | None = Cookie(default=None)):
+    user = user_from_session(lg_session)
+    with db() as conn:
+        row = conn.execute("SELECT * FROM deals WHERE upper(share_code) = ?", (tag.lstrip("#").upper(),)).fetchone()
+        if not row or row["buyer_contact"].lstrip("@").lower() != user["name"].lower():
+            raise HTTPException(403, "not_your_deal")
+        if row["status"] != "created":
+            raise HTTPException(409, "already_paid")
+        conn.execute("UPDATE deals SET status = 'paid', updated_at = ? WHERE id = ?", (now(), row["id"]))
+        row = conn.execute("SELECT * FROM deals WHERE id = ?", (row["id"],)).fetchone()
+    return {"ok": True, "deal": mini_deal(row)}
+
+
+@app.post("/api/deal/{tag}/receipt")
+def mini_receipt(tag: str, lg_session: str | None = Cookie(default=None)):
+    user = user_from_session(lg_session)
+    with db() as conn:
+        row = conn.execute("SELECT * FROM deals WHERE upper(share_code) = ?", (tag.lstrip("#").upper(),)).fetchone()
+        if not row or row["buyer_contact"].lstrip("@").lower() != user["name"].lower():
+            raise HTTPException(403, "not_your_deal")
+        conn.execute("UPDATE deals SET status = 'completed', updated_at = ? WHERE id = ?", (now(), row["id"]))
+    return {"ok": True}
+
+
+@app.post("/api/language")
+def mini_language(lg_session: str | None = Cookie(default=None)):
+    user_from_session(lg_session)
+    return {"ok": True}
+
+
 @app.get("/api/deals")
 def deals(lg_session: str | None = Cookie(default=None)):
     user = user_from_session(lg_session)

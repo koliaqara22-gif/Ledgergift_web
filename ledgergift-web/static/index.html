@@ -1,22 +1,86 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0c1226">
-  <title>LedgerGift — безопасные сделки с подарками</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>LedgerGift</title>
+  <link rel="icon" href="assets/icon-192.png" />
+  <link rel="stylesheet" href="style.css?v=20261009q" />
+  <style>
+    html,body,button,input,select,textarea{font-family:"Avenir Next","SF Pro Rounded","SF Pro Display",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important}
+    /* Last-resort layout guards: these win over legacy card rules in all WebViews. */
+    .profile-flip-wrap{width:calc(100% - 20px)!important;height:228px!important;margin:4px auto 14px!important;position:relative!important}
+    .profile-flip-wrap .flip-card{height:228px!important;position:relative!important;transform:none!important;transition:none!important}
+    .profile-flip-wrap .flip-face.profile-card{position:absolute!important;inset:0!important;width:100%!important;height:228px!important;margin:0!important;padding:19px!important;box-sizing:border-box!important}
+    .profile-flip-wrap .flip-front{display:block!important}.profile-flip-wrap.flipped .flip-front{display:none!important}
+    .profile-flip-wrap .flip-back{display:none!important;transform:none!important}.profile-flip-wrap.flipped .flip-back{display:block!important}
+    .profile-flip-wrap .profile-chip{position:absolute!important;z-index:3!important;top:auto!important;left:auto!important;right:18px!important;bottom:47px!important;width:38px!important;height:29px!important;border-radius:7px!important;background:linear-gradient(145deg,#f9d96b 0%,#e1ad35 52%,#bd7d13 100%)!important;box-shadow:inset 0 0 0 1px rgba(104,64,5,.42),0 2px 4px rgba(0,0,0,.2)!important}
+    .profile-flip-wrap .profile-chip:after{content:""!important;position:absolute!important;inset:0!important;background:linear-gradient(90deg,transparent 29%,rgba(119,75,8,.42) 30% 33%,transparent 34% 65%,rgba(119,75,8,.42) 66% 69%,transparent 70%),linear-gradient(transparent 45%,rgba(119,75,8,.42) 46% 53%,transparent 54%)!important}
+    .profile-flip-wrap .flip-front #cardPalette{position:absolute!important;z-index:8!important;top:16px!important;left:auto!important;right:18px!important;bottom:auto!important;display:grid!important;place-items:center!important;margin:0!important}
+    .profile-flip-wrap .card-turn{position:absolute!important;z-index:8!important;display:grid!important;place-items:center!important;top:auto!important;left:auto!important;right:18px!important;bottom:15px!important;width:40px!important;height:25px!important;padding:0!important;border:1px solid rgba(255,255,255,.45)!important;border-radius:8px!important;background:linear-gradient(145deg,rgba(52,64,91,.9),rgba(17,21,37,.92))!important;color:#fff!important;font:700 17px/1 sans-serif!important;box-shadow:inset 0 1px rgba(255,255,255,.16),0 2px 5px rgba(0,0,0,.2)!important;white-space:normal!important}
+    .profile-flip-wrap .flip-front .pf-person{margin-top:28px!important}.profile-flip-wrap .flip-front>small{margin-top:28px!important}.profile-flip-wrap .flip-front>strong{font-size:28px!important}
+    .profile-flip-wrap .card-back-stats,.profile-flip-wrap .card-back-stats div,.profile-flip-wrap .card-back-stats span,.profile-flip-wrap .card-back-stats b{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;outline:0!important}.profile-flip-wrap .card-back-stats{margin-top:22px!important}.profile-flip-wrap .card-back-stats span{color:rgba(231,241,255,.76)!important;font-size:8px!important;letter-spacing:0!important}.profile-flip-wrap .card-back-stats b{color:#fff!important;font-size:21px!important}
+    .profile-flip-wrap .card-back-footer{position:absolute!important;left:19px!important;bottom:13px!important;z-index:4!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;color:rgba(218,232,253,.68)!important;font-size:7px!important;font-weight:800!important;letter-spacing:.72px!important}
+    .profile-flip-wrap .card-footer{left:20px!important;right:20px!important;bottom:15px!important}
+    .profile-flip-wrap.flipped .card-footer{bottom:11px!important}
+    body.light-theme .lang-row{background:#fff!important;color:#151824!important;border-color:rgba(21,32,52,.16)!important}
+    body.light-theme .lang-row.active{color:#151824!important;background:#f8fcff!important}
+    .currency-tabs{scrollbar-width:thin!important;scrollbar-color:rgba(68,133,224,.62) transparent!important;padding-bottom:9px!important}
+    .currency-tabs::-webkit-scrollbar{display:block!important;height:3px!important}.currency-tabs::-webkit-scrollbar-thumb{background:rgba(68,133,224,.62)!important;border-radius:99px!important}
+    .wallet-requisite-btn{margin-top:12px!important;min-height:52px!important}
+  </style>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
-<body>
-  <div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
-  <header class="topbar">
-    <a class="brand" href="#home"><span class="brand-mark">L</span><b>LedgerGift</b></a>
-    <nav class="nav"><a href="#home">Главная</a><a href="#deals">Сделки</a><a href="#wallet">Кошелёк</a></nav>
-    <div class="head-actions"><button class="theme" id="themeToggle" aria-label="Тема">◐</button><button class="account" id="accountBtn">Войти</button></div>
-  </header>
-  <main id="app"><div class="loader">Загружаем LedgerGift…</div></main>
-  <div class="toast" id="toast"></div>
-  <dialog id="authDialog"><button class="modal-close" data-close>×</button><div id="authContent"></div></dialog>
+<body class="light-theme">
+  <div class="nft-atmosphere" aria-hidden="true">
+    <img class="nft-float nft-pepe" src="assets/decor/pepe.png" alt="" />
+    <img class="nft-float nft-watch" src="assets/decor/watch.png" alt="" />
+    <img class="nft-float nft-bag" src="assets/decor/gold-bag.png" alt="" />
+    <img class="nft-float nft-helmet" src="assets/decor/helmet.png" alt="" />
+    <img class="nft-float nft-cap" src="assets/decor/cap.png" alt="" />
+    <img class="nft-float nft-ring" src="assets/decor/ring.png" alt="" />
+  </div>
+  <div id="app">
+    <!-- Header -->
+    <header class="topbar">
+      <button class="brand" id="homeBtn" aria-label="Главная">
+        <img src="assets/logo.png" alt="LedgerGift" class="brand-logo" />
+        <span class="brand-name">LedgerGift</span>
+      </button>
+      <div class="theme-switch" aria-label="Theme">
+        <button id="themeLight" title="Light theme"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button>
+        <button id="themeDark" title="Dark theme"><svg viewBox="0 0 24 24"><path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5 8.5 8.5 0 1 0 20.5 15.5z"/></svg></button>
+      </div>
+    </header>
+
+    <!-- Main content mounts here -->
+    <main id="view" class="view"></main>
+
+    <!-- Bottom navigation -->
+    <nav class="tabbar">
+      <button class="tab" data-route="balance"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 7h16v11H4zM4 10h16M16 15h2"/></svg></span><span class="lbl" data-i18n="nav_balance">Баланс</span></button>
+      <button class="tab" data-route="wallets"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 6h14a2 2 0 0 1 2 2v10H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zm0 4h16M16 14h2"/></svg></span><span class="lbl" data-i18n="wallets_short">Кошельки</span></button>
+      <button class="tab tab-fab" data-route="home"><span class="ic"><svg viewBox="0 0 24 24"><path d="m3 11 9-8 9 8v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zm6 10v-6h6v6"/></svg></span><span class="lbl" data-i18n="nav_home">Главная</span></button>
+      <button class="tab" data-route="top"><span class="ic"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zm0 2H4v2a3 3 0 0 0 3 3m10-5h3v2a3 3 0 0 1-3 3"/></svg></span><span class="lbl" data-i18n="nav_top">Топ</span></button>
+      <button class="tab" data-route="profile"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg></span><span class="lbl" data-i18n="nav_profile">Профиль</span></button>
+    </nav>
+  </div>
+
+  <section id="webAuth" class="web-auth" aria-label="Вход в LedgerGift">
+    <div class="web-auth-card">
+      <div class="web-auth-brand"><img src="assets/logo.png" alt=""><b>LedgerGift</b></div>
+      <div class="web-stars-card"><span>LEDGERGIFT</span><small>БАЛАНС STARS</small><strong>20 000 <i>★</i></strong><em>Telegram Stars</em><b>✦</b></div>
+      <h1 id="webAuthTitle">Войдите в LedgerGift</h1>
+      <p id="webAuthHint">Ваш баланс, сделки и кошельки — в одном месте.</p>
+      <div class="web-auth-tabs"><button class="active" data-auth-mode="login">Войти</button><button data-auth-mode="register">Регистрация</button></div>
+      <form id="webAuthForm"><label><span>Никнейм</span><input name="name" minlength="2" required placeholder="Ваш никнейм"></label><label><span>Пароль</span><input name="password" type="password" minlength="6" required placeholder="Минимум 6 символов"></label><button id="webAuthSubmit" type="submit">Войти</button></form>
+    </div>
+  </section>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
