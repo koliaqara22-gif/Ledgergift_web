@@ -90,6 +90,12 @@
     let data = null;
     try { data = await res.json(); } catch (e) {}
     if (!res.ok) {
+      // Render restarts clear the in-memory session. Return to the normal
+      // login screen instead of leaving an old page with "auth_required".
+      if (res.status === 401) {
+        window.location.reload();
+        throw new Error("Сессия завершена. Войдите снова.");
+      }
       const detail = (data && data.detail) ? data.detail : ("HTTP " + res.status);
       throw new Error(detail);
     }
