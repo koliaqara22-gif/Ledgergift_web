@@ -302,3 +302,13 @@ body.light-theme .topbar,body.light-theme .tabbar{background:rgba(255,255,255,.8
   .rules,.how-steps,.type-grid,.cur-grid,.step-label,.field,.field-err,.link-box,.deal-timeline,.deal-actions{max-width:900px;margin-left:auto;margin-right:auto}
   .type-grid,.cur-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.sheet{max-width:640px!important}
 }
+
+/* Desktop flows: keep fields and paired controls aligned in one readable column. */
+@media (min-width:900px){
+  .pad>.vhead,.pad>.btn-row,.pad>.card,.pad>.admin-web{max-width:900px;margin-left:auto;margin-right:auto}
+  .pad>.btn-row{margin-top:18px;margin-bottom:18px}
+  .pad>.field{display:block;box-sizing:border-box}
+  .admin-web .card{margin:14px auto}
+}
+.link-box a{color:var(--accent);text-decoration:none;word-break:break-all}
+.admin-names{margin:8px 0 0;padding-left:20px}.admin-names li{margin:6px 0}.admin-web h3{margin:4px 0 12px;font-size:16px}

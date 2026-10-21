@@ -55,7 +55,9 @@
   function startParam() {
     const telegramParam = tg && tg.initDataUnsafe ? tg.initDataUnsafe.start_param : "";
     const urlParam = new URLSearchParams(window.location.search).get("tgWebAppStartParam") || "";
-    return telegramParam || urlParam;
+    const dealParam = new URLSearchParams(window.location.search).get("deal") || "";
+    const hashParam = (window.location.hash || "").replace(/^#deal_?/, "");
+    return telegramParam || urlParam || (dealParam ? "deal_" + dealParam : "") || (hashParam ? "deal_" + hashParam : "");
   }
   function haptic(type) {
     try { tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred(type || "light"); } catch (e) {}
@@ -734,7 +736,7 @@
           row(t("deal_title"), "#" + deal.tag) +
         '</div>' +
         '<p class="step-label">' + esc(t("share_link")) + '</p>' +
-        '<div class="link-box"><code id="shareLink">' + esc(link) + '</code></div>' +
+        '<div class="link-box"><a id="shareLink" href="' + esc(link) + '">' + esc(link) + '</a></div>' +
         '<div class="btn-row">' +
           '<button class="btn" id="copyBtn">' + esc(t("copy")) + '</button>' +
           '<button class="btn primary" id="shareBtn">' + esc(t("sharetg")) + '</button>' +
@@ -1096,6 +1098,40 @@
       }
       haptic("medium");
     } catch (e) { out.innerHTML = '<p class="neg">' + esc(errText(e)) + '</p>'; }
+  }
+
+  // Compact web administration panel.  Roles are checked again by the API;
+  // this client only renders the controls after a successful unlock.
+  routes.admin = function () {
+    if (!state.boot.me.is_admin) { go("home"); return; }
+    view.innerHTML = '<section class="pad fade admin-web">' + header("Админка", icon("shield")) +
+      '<div id="adminUnlock" class="card"><p class="muted">Введите пароль панели управления.</p>' +
+      '<input class="field" id="adminPassword" type="password" placeholder="Пароль админки" />' +
+      '<button class="btn primary block" id="adminUnlockBtn">Открыть админку</button></div><div id="adminContent"></div></section>';
+    document.getElementById("adminUnlockBtn").addEventListener("click", async function () {
+      try {
+        await api("/api/admin/unlock", { method: "POST", body: { password: document.getElementById("adminPassword").value } });
+        renderWebAdmin();
+      } catch (e) { toast(errText(e)); }
+    });
+  };
+
+  async function renderWebAdmin() {
+    const unlock = document.getElementById("adminUnlock");
+    const holder = document.getElementById("adminContent");
+    if (unlock) unlock.remove();
+    holder.innerHTML = '<div class="loader"><div class="spin"></div></div>';
+    try {
+      const d = await api("/api/admin/overview");
+      const admins = d.admins.length ? d.admins.map(function (a) { return '<li>@' + esc(a.name) + '</li>'; }).join("") : '<li class="muted">Пока нет назначенных администраторов</li>';
+      holder.innerHTML = '<div class="card"><b>Активных сделок: ' + esc(d.active_deals) + '</b><p class="muted">Баланс можно пополнить только из админки. Автоматических пополнений здесь нет.</p></div>' +
+        (d.owner ? '<div class="card"><h3>Выдать админку</h3><label class="fld"><span>Ник пользователя</span><input class="field" id="grantNick" placeholder="@username" /></label><button class="btn primary block" id="grantAdmin">Выдать доступ</button><h3>Администраторы</h3><ul class="admin-names">' + admins + '</ul></div>' : '') +
+        '<div class="card"><h3>Изменить баланс</h3><label class="fld"><span>Ник пользователя</span><input class="field" id="balanceNick" placeholder="@username" /></label><label class="fld"><span>Сумма (можно с минусом)</span><input class="field" id="balanceAmount" inputmode="decimal" placeholder="100" /></label><label class="fld"><span>Валюта</span><select class="field" id="balanceCurrency">' + state.boot.currencies.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join("") + '</select></label><button class="btn primary block" id="balanceSave">Сохранить баланс</button></div>' +
+        '<div class="card"><h3>Журнал</h3><div class="audit-list">' + (d.logs.length ? d.logs.map(function (log) { return '<div><b>' + esc(log.action) + '</b><small>' + esc(log.target || "—") + ' · ' + esc(log.created_at) + '</small></div>'; }).join("") : '<p class="muted">Записей ещё нет.</p>') + '</div></div>';
+      const grant = document.getElementById("grantAdmin");
+      if (grant) grant.addEventListener("click", async function () { try { await api("/api/admin/admins", { method: "POST", body: { nickname: document.getElementById("grantNick").value } }); toast("Админка выдана"); renderWebAdmin(); } catch (e) { toast(errText(e)); } });
+      document.getElementById("balanceSave").addEventListener("click", async function () { try { await api("/api/admin/balance", { method: "POST", body: { nickname: document.getElementById("balanceNick").value, amount: document.getElementById("balanceAmount").value, currency: document.getElementById("balanceCurrency").value } }); toast("Баланс обновлён"); } catch (e) { toast(errText(e)); } });
+    } catch (e) { holder.innerHTML = '<p class="neg">' + esc(errText(e)) + '</p>'; }
   }
 
   // ---- wiring -----------------------------------------------------------
