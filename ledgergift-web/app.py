@@ -84,6 +84,17 @@ def init_db() -> None:
             target TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS withdrawals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            currency TEXT NOT NULL,
+            amount REAL NOT NULL,
+            destination TEXT NOT NULL,
+            destination_kind TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'created',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
         """)
 
 
@@ -274,7 +285,18 @@ def mini_balances(lg_session: str | None = Cookie(default=None)):
     user = user_from_session(lg_session)
     with db() as conn:
         history = conn.execute("SELECT currency,amount,reason,deal_tag,created_at FROM balance_history WHERE user_id = ? ORDER BY id DESC LIMIT 50", (user["id"],)).fetchall()
-    return {"balances": balances_for(user["id"]), "history": [dict(row) for row in history]}
+        withdrawals = conn.execute("SELECT id,status FROM withdrawals WHERE user_id = ?", (user["id"],)).fetchall()
+    stages = {"withdrawal:" + str(row["id"]): row["status"] for row in withdrawals}
+    visible_history = []
+    for row in history:
+        item = dict(row)
+        if item["reason"] == "withdrawal_request":
+            stage = stages.get(item.get("deal_tag") or "")
+            if stage in ("completed", "rejected"):
+                continue
+            item["withdrawal_stage"] = stage or "created"
+        visible_history.append(item)
+    return {"balances": balances_for(user["id"]), "history": visible_history}
 
 
 @app.get("/api/requisites")
@@ -298,6 +320,31 @@ def mini_delete_requisites(currency: str, lg_session: str | None = Cookie(defaul
     user = user_from_session(lg_session)
     web_requisites.get(user["id"], {}).pop(currency, None)
     return {"ok": True}
+
+
+@app.post("/api/balance/withdraw")
+def mini_withdraw(body: dict, lg_session: str | None = Cookie(default=None)):
+    user = user_from_session(lg_session)
+    currency = str(body.get("currency", ""))
+    try:
+        amount = float(body.get("amount", 0))
+    except (TypeError, ValueError):
+        amount = 0
+    requisite = web_requisites.get(user["id"], {}).get(currency)
+    if currency not in WEB_CURRENCIES or amount <= 0:
+        raise HTTPException(400, "invalid_withdrawal")
+    if not requisite or not str(requisite.get("value", "")).strip():
+        raise HTTPException(400, "requisites_required")
+    stamp = now()
+    with db() as conn:
+        change_balance(conn, user["id"], currency, -amount, "withdrawal_request")
+        cur = conn.execute("""INSERT INTO withdrawals(user_id,currency,amount,destination,destination_kind,status,created_at,updated_at)
+            VALUES(?,?,?,?,?,?,?,?)""", (user["id"], currency, amount, requisite["value"], requisite.get("kind", ""), "created", stamp, stamp))
+        withdrawal_id = cur.lastrowid
+        conn.execute("""UPDATE balance_history SET deal_tag = ? WHERE id = (
+            SELECT id FROM balance_history WHERE user_id = ? AND reason = 'withdrawal_request' ORDER BY id DESC LIMIT 1)""",
+            ("withdrawal:" + str(withdrawal_id), user["id"]))
+    return {"ok": True, "withdrawal_id": withdrawal_id, "status": "created"}
 
 
 @app.get("/api/deals/history")
@@ -448,6 +495,33 @@ def admin_deals(lg_session: str | None = Cookie(default=None), lg_admin: str | N
     with db() as conn:
         rows = conn.execute("SELECT * FROM deals ORDER BY id DESC LIMIT 100").fetchall()
     return {"deals": [mini_deal(row) for row in rows]}
+
+
+@app.get("/api/admin/withdrawals")
+def admin_withdrawals(lg_session: str | None = Cookie(default=None), lg_admin: str | None = Cookie(default=None)):
+    require_admin(lg_session, lg_admin)
+    with db() as conn:
+        rows = conn.execute("""SELECT w.*, u.name AS username FROM withdrawals w
+            JOIN users u ON u.id = w.user_id WHERE w.status NOT IN ('completed','rejected') ORDER BY w.id DESC""").fetchall()
+    return {"items": [dict(row) for row in rows]}
+
+
+@app.post("/api/admin/withdrawals/{withdrawal_id}/{action}")
+def admin_withdrawal_action(withdrawal_id: int, action: str, lg_session: str | None = Cookie(default=None), lg_admin: str | None = Cookie(default=None)):
+    admin = require_admin(lg_session, lg_admin)
+    if action not in ("checking", "sending", "completed", "rejected"):
+        raise HTTPException(400, "bad_withdrawal_action")
+    with db() as conn:
+        row = conn.execute("SELECT * FROM withdrawals WHERE id = ?", (withdrawal_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "withdrawal_not_found")
+        if row["status"] in ("completed", "rejected"):
+            raise HTTPException(409, "withdrawal_closed")
+        if action == "rejected":
+            change_balance(conn, row["user_id"], row["currency"], float(row["amount"]), "withdrawal_refund")
+        conn.execute("UPDATE withdrawals SET status = ?, updated_at = ? WHERE id = ?", (action, now(), withdrawal_id))
+        write_audit(conn, admin["id"], "withdrawal_" + action, f"#{withdrawal_id} @{row['user_id']} {row['amount']:g} {row['currency']}")
+    return {"ok": True, "status": action}
 
 
 @app.get("/api/admin/audit")
