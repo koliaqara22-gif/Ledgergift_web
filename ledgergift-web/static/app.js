@@ -5,9 +5,9 @@
     if (!cards.length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let front = 0;
     const poses = [
-      { transform: "perspective(1100px) translate3d(0,24px,34px) rotate(-5deg) scale(1)", z: 3, opacity: 1 },
-      { transform: "perspective(1100px) translate3d(100px,-4px,0) rotate(4deg) scale(.95)", z: 2, opacity: .9 },
-      { transform: "perspective(1100px) translate3d(174px,48px,-24px) rotate(9deg) scale(.9)", z: 1, opacity: .78 }
+      { transform: "perspective(1150px) translate3d(0,24px,45px) rotate(-5deg) scale(1)", z: 3, opacity: 1 },
+      { transform: "perspective(1150px) translate3d(86px,-3px,0) rotate(4deg) scale(.95)", z: 2, opacity: .88 },
+      { transform: "perspective(1150px) translate3d(145px,42px,-30px) rotate(9deg) scale(.9)", z: 1, opacity: .74 }
     ];
     function amount(card) {
       const value = card.querySelector(".promo-value");
@@ -21,9 +21,9 @@
       cards.forEach(function (card, index) {
         const place = (index - front + cards.length) % cards.length;
         const pose = poses[place];
-        card.style.transform = pose.transform;
-        card.style.zIndex = pose.z;
-        card.style.opacity = pose.opacity;
+        card.style.setProperty("transform", pose.transform, "important");
+        card.style.setProperty("z-index", pose.z, "important");
+        card.style.setProperty("opacity", pose.opacity, "important");
       });
       dots.forEach(function (dot, index) { dot.classList.toggle("active", index === front); });
       amount(cards[front]);
