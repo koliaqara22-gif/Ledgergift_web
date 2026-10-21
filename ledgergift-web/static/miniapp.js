@@ -808,16 +808,17 @@
       actions += '<button class="btn primary block" id="yesBtn">' + esc(t("yes_received")) + '</button>' +
                  '<button class="btn block" id="noBtn">' + esc(t("seller_refused")) + '</button>';
     }
+    if (role.is_seller && deal.status === "paid") {
+      actions += '<div class="card" style="margin:0 0 10px"><b>Передайте подарок покупателю</b><p class="muted" style="margin:6px 0 0">Вернитесь в чат с покупателем, передайте подарок и подтвердите это здесь.</p></div>' +
+                 '<button class="btn primary block" id="transferredBtn">Я передал подарок</button>';
+    }
     if (role.is_buyer && (deal.status === "paid" || deal.status === "transferred")) {
       actions += '<button class="btn ghost block" id="notifySellerBtn">' + icon("send") + esc(t("notify_seller_paid")) + '</button>';
     }
     if (!role.can_pay && !role.can_confirm && !role.is_seller && !role.is_staff) {
       actions += '<p class="muted">' + esc(t("not_your_deal")) + '</p>';
     }
-    const managerStep = (role.can_confirm || role.is_seller) && (deal.status === "paid" || deal.status === "transferred");
     if (deal.transfer_seconds_left !== null && deal.transfer_seconds_left !== undefined) actions = '<div class="transfer-timer" id="transferTimer" data-left="' + deal.transfer_seconds_left + '">' + esc(t("transfer_deadline")) + ' <b></b></div>' + actions;
-    if ((role.is_buyer || role.is_seller) && deal.status !== "completed" && deal.status !== "cancelled") actions += '<button class="btn ghost block" id="problemBtn">' + esc(t("deal_problem")) + '</button>';
-    actions += '<button class="btn ghost block" id="supBtn">' + esc(managerStep ? t("transfer_to_manager") : t("support")) + '</button>';
 
     view.innerHTML =
       '<section class="pad fade">' + header(t("deal_title") + " #" + deal.tag, icon("shield")) +
@@ -842,14 +843,16 @@
     });
     const no = document.getElementById("noBtn");
     if (no) no.addEventListener("click", async function () { if (!confirm(t("cancel_confirm"))) return; try { await api("/api/deal/" + deal.tag + "/cancel", { method: "POST" }); celebrate(); toast(t("cancelled_ok")); routes.deal(deal.tag); } catch (e) { toast(errText(e)); } });
+    const transferred = document.getElementById("transferredBtn");
+    if (transferred) transferred.addEventListener("click", async function () {
+      try { await api("/api/deal/" + deal.tag + "/transferred", { method: "POST" }); toast("Ожидаем подтверждение покупателя"); routes.deal(deal.tag); }
+      catch (e) { toast(errText(e)); }
+    });
     const notifySeller = document.getElementById("notifySellerBtn");
     if (notifySeller) notifySeller.addEventListener("click", async function () {
       try { await api("/api/deal/" + deal.tag + "/notify-seller", { method: "POST" }); toast(t("seller_paid_sent")); }
       catch (e) { toast(errText(e)); }
     });
-    document.getElementById("supBtn").addEventListener("click", openManager);
-    const problem = document.getElementById("problemBtn");
-    if (problem) problem.addEventListener("click", function () { openManagerWithDeal(deal.tag, t("problem_message")); });
     startTransferTimer();
   }
 

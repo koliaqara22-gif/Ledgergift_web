@@ -12,7 +12,7 @@
     mode = next;
     document.querySelectorAll("[data-auth-mode]").forEach(function (button) { button.classList.toggle("active", button.dataset.authMode === mode); });
     document.getElementById("webAuthTitle").textContent = mode === "login" ? "Войдите в LedgerGift" : "Создайте аккаунт";
-    document.getElementById("webAuthHint").textContent = mode === "login" ? "Ваш баланс, сделки и кошельки — в одном месте." : "Никнейм и пароль — без email и Telegram Mini App.";
+    document.getElementById("webAuthHint").textContent = mode === "login" ? "Ваш баланс, сделки и кошельки — в одном месте." : "Придумайте никнейм и пароль.";
     document.getElementById("webAuthSubmit").textContent = mode === "login" ? "Войти" : "Создать аккаунт";
   }
   document.querySelectorAll("[data-auth-mode]").forEach(function (button) { button.addEventListener("click", function () { setMode(button.dataset.authMode); }); });
@@ -20,7 +20,7 @@
     event.preventDefault();
     const submit = document.getElementById("webAuthSubmit"); submit.disabled = true;
     try { await request("/api/auth/" + (mode === "login" ? "login" : "register"), { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(form))) }); window.location.reload(); }
-    catch (error) { document.getElementById("webAuthHint").textContent = error.message === "nickname_exists" ? "Этот никнейм уже занят." : (error.message === "invalid_credentials" ? "Проверьте никнейм и пароль." : error.message); }
+    catch (error) { document.getElementById("webAuthHint").textContent = error.message === "nickname_exists" ? "Этот никнейм уже занят." : (error.message === "invalid_credentials" ? "Проверьте никнейм и пароль." : "Сервер сайта не запущен. Откройте сайт по ссылке после деплоя."); }
     finally { submit.disabled = false; }
   });
   request("/api/me").then(function () { gate.remove(); const script = document.createElement("script"); script.src = "miniapp.js"; document.body.appendChild(script); }).catch(function () { gate.classList.add("show"); });

@@ -259,7 +259,7 @@ def mini_get_deal(tag: str, lg_session: str | None = Cookie(default=None)):
         raise HTTPException(404, "deal_not_found")
     buyer = row["buyer_contact"].lstrip("@").lower() == user["name"].lower()
     seller = row["seller_id"] == user["id"]
-    return {"deal": mini_deal(row), "role": {"is_buyer": buyer, "is_seller": seller, "is_staff": False, "can_pay": buyer and row["status"] == "created", "can_confirm": buyer and row["status"] in ("paid", "transferred")}, "support_username": ""}
+    return {"deal": mini_deal(row), "role": {"is_buyer": buyer, "is_seller": seller, "is_staff": False, "can_pay": buyer and row["status"] == "created", "can_confirm": buyer and row["status"] == "transferred"}, "support_username": ""}
 
 
 @app.post("/api/deal/{tag}/pay")
@@ -276,6 +276,19 @@ def mini_pay_deal(tag: str, lg_session: str | None = Cookie(default=None)):
     return {"ok": True, "deal": mini_deal(row)}
 
 
+@app.post("/api/deal/{tag}/transferred")
+def mini_transferred_deal(tag: str, lg_session: str | None = Cookie(default=None)):
+    user = user_from_session(lg_session)
+    with db() as conn:
+        row = conn.execute("SELECT * FROM deals WHERE upper(share_code) = ?", (tag.lstrip("#").upper(),)).fetchone()
+        if not row or row["seller_id"] != user["id"]:
+            raise HTTPException(403, "not_your_deal")
+        if row["status"] != "paid":
+            raise HTTPException(409, "transfer_not_available")
+        conn.execute("UPDATE deals SET status = 'transferred', updated_at = ? WHERE id = ?", (now(), row["id"]))
+    return {"ok": True}
+
+
 @app.post("/api/deal/{tag}/receipt")
 def mini_receipt(tag: str, lg_session: str | None = Cookie(default=None)):
     user = user_from_session(lg_session)
@@ -283,6 +296,8 @@ def mini_receipt(tag: str, lg_session: str | None = Cookie(default=None)):
         row = conn.execute("SELECT * FROM deals WHERE upper(share_code) = ?", (tag.lstrip("#").upper(),)).fetchone()
         if not row or row["buyer_contact"].lstrip("@").lower() != user["name"].lower():
             raise HTTPException(403, "not_your_deal")
+        if row["status"] != "transferred":
+            raise HTTPException(409, "transfer_not_confirmed")
         conn.execute("UPDATE deals SET status = 'completed', updated_at = ? WHERE id = ?", (now(), row["id"]))
     return {"ok": True}
 
