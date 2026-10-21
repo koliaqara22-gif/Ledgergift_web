@@ -85,7 +85,7 @@ def user_from_session(lg_session: str | None) -> sqlite3.Row:
 
 
 def public_user(user: sqlite3.Row) -> dict:
-    return {"id": user["id"], "name": user["name"], "email": user["email"], "balance": user["balance"]}
+    return {"id": user["id"], "name": user["name"], "balance": user["balance"]}
 
 
 def public_deal(row: sqlite3.Row, viewer_id: int | None = None) -> dict:
@@ -97,8 +97,8 @@ def public_deal(row: sqlite3.Row, viewer_id: int | None = None) -> dict:
 
 
 class Credentials(BaseModel):
-    name: str = Field(default="", max_length=60)
-    email: str = Field(min_length=3, max_length=120)
+    name: str = Field(min_length=2, max_length=60)
+    email: str = Field(default="", max_length=120)
     password: str = Field(min_length=6, max_length=128)
 
 
@@ -108,7 +108,6 @@ class DealIn(BaseModel):
     price: float = Field(gt=0, le=10_000_000)
     currency: str = Field(pattern="^(TON|USDT|RUB|USD|Stars)$")
     buyer_contact: str = Field(default="", max_length=100)
-    buyer_email: str = Field(default="", max_length=120)
 
 
 class ActionIn(BaseModel):
@@ -117,17 +116,15 @@ class ActionIn(BaseModel):
 
 @app.post("/api/auth/register")
 def register(body: Credentials, response: Response):
-    name = body.name.strip() or body.email.split("@", 1)[0]
-    email = body.email.strip().lower()
-    if "@" not in email:
-        raise HTTPException(400, "invalid_email")
+    name = body.name.strip()
+    email = f"{name.lower()}@ledgergift.local"
     try:
         with db() as conn:
             cur = conn.execute("INSERT INTO users(name,email,password_hash,created_at) VALUES(?,?,?,?)", (name, email, password_hash(body.password), now()))
             uid = cur.lastrowid
             user = conn.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
     except sqlite3.IntegrityError:
-        raise HTTPException(409, "email_exists")
+        raise HTTPException(409, "nickname_exists")
     token = secrets.token_urlsafe(32)
     sessions[token] = uid
     response.set_cookie("lg_session", token, httponly=True, samesite="lax", secure=os.getenv("COOKIE_SECURE", "0") == "1", max_age=60 * 60 * 24 * 30)
@@ -137,7 +134,7 @@ def register(body: Credentials, response: Response):
 @app.post("/api/auth/login")
 def login(body: Credentials, response: Response):
     with db() as conn:
-        user = conn.execute("SELECT * FROM users WHERE email = ?", (body.email.strip().lower(),)).fetchone()
+        user = conn.execute("SELECT * FROM users WHERE lower(name) = ?", (body.name.strip().lower(),)).fetchone()
     if not user or not password_matches(body.password, user["password_hash"]):
         raise HTTPException(401, "invalid_credentials")
     token = secrets.token_urlsafe(32)
@@ -174,7 +171,7 @@ def create_deal(body: DealIn, lg_session: str | None = Cookie(default=None)):
     stamp = now()
     with db() as conn:
         cur = conn.execute("""INSERT INTO deals(share_code,seller_id,buyer_email,buyer_contact,gift_name,description,price,currency,status,created_at,updated_at)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?)""", (code, user["id"], body.buyer_email.strip().lower(), body.buyer_contact.strip(), body.gift_name.strip(), body.description.strip(), body.price, body.currency, "created", stamp, stamp))
+        VALUES(?,?,?,?,?,?,?,?,?,?,?)""", (code, user["id"], "", body.buyer_contact.strip(), body.gift_name.strip(), body.description.strip(), body.price, body.currency, "created", stamp, stamp))
         row = conn.execute("SELECT * FROM deals WHERE id = ?", (cur.lastrowid,)).fetchone()
     return {"deal": public_deal(row, user["id"])}
 
@@ -200,8 +197,6 @@ def join_deal(code: str, lg_session: str | None = Cookie(default=None)):
             raise HTTPException(400, "seller_cannot_join")
         if row["buyer_id"] and row["buyer_id"] != user["id"]:
             raise HTTPException(403, "deal_taken")
-        if row["buyer_email"] and row["buyer_email"] != user["email"]:
-            raise HTTPException(403, "buyer_email_mismatch")
         conn.execute("UPDATE deals SET buyer_id = ?, updated_at = ? WHERE id = ?", (user["id"], now(), row["id"]))
         row = conn.execute("SELECT * FROM deals WHERE id = ?", (row["id"],)).fetchone()
     return {"deal": public_deal(row, user["id"])}
