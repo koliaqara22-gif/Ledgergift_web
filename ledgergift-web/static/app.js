@@ -31,7 +31,6 @@
     draw();
     window.setInterval(function () { front = (front + 1) % cards.length; draw(); }, 6200);
   }
-  startBannerPreview();
   const gate = document.getElementById("webAuth");
   const form = document.getElementById("webAuthForm");
   let mode = "login";
@@ -56,5 +55,5 @@
     catch (error) { document.getElementById("webAuthHint").textContent = error.message === "nickname_exists" ? "Этот никнейм уже занят." : (error.message === "invalid_credentials" ? "Проверьте никнейм и пароль." : "Сервер сайта не запущен. Откройте сайт по ссылке после деплоя."); }
     finally { submit.disabled = false; }
   });
-  request("/api/me").then(function () { gate.remove(); const script = document.createElement("script"); script.src = "miniapp.js"; document.body.appendChild(script); }).catch(function () { gate.classList.add("show"); });
+  request("/api/me").then(function () { gate.remove(); const script = document.createElement("script"); script.src = "miniapp.js?v=20261022a"; document.body.appendChild(script); }).catch(function () { gate.classList.add("show"); startBannerPreview(); });
 }());
