@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ledgergift",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-22",
+  "assets": { "directory": "./static", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "ledgergift",
+    "database_id": "ec8c471f-2646-4cd2-af10-66cce065f1f3"
+  }]
+}
