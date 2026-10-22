@@ -311,6 +311,7 @@ body.light-theme .topbar,body.light-theme .tabbar{background:rgba(255,255,255,.8
 }
 
 /* Desktop flows: keep fields and paired controls aligned in one readable column. */
+ .profile-actions .profile-logout{grid-column:1 / -1;color:#d84c59;border-color:rgba(216,76,89,.34)}.profile-actions .profile-logout:hover{background:rgba(216,76,89,.08)}
 @media (min-width:900px){
   .pad>.vhead,.pad>.btn-row,.pad>.card,.pad>.admin-web{max-width:900px;margin-left:auto;margin-right:auto}
   .pad>.btn-row{margin-top:18px;margin-bottom:18px}

@@ -559,13 +559,17 @@
           '<div class="flip-wrap profile-flip-wrap"><div class="flip-card">' +
             '<div class="flip-face flip-front profile-card theme-' + esc(cardTheme) + '"><div class="card-brand">LedgerGift</div><button class="card-palette" id="cardPalette" aria-label="card color"><span></span></button><i class="profile-chip" aria-hidden="true"></i><div class="pf-person"><div class="pf-avatar" id="profileAvatar">' + esc((p.username || "?").charAt(0).toUpperCase()) + '</div><div><div class="pf-name">' + esc(displayName) + '</div><div class="pf-user">' + esc(uname) + '</div></div></div><small>' + esc(t("volume")) + '</small><strong>' + esc(fmt(p.volume || 0)) + '</strong></div>' +
           '</div></div>' +
-          '<div class="profile-actions"><button class="profile-action active" id="profileWallets">' + icon("wallet") + esc(t("wallets")) + '</button><button class="profile-action" id="profileLang">' + icon("globe") + esc(t("a_language")) + '</button></div>' +
+          '<div class="profile-actions"><button class="profile-action active" id="profileWallets">' + icon("wallet") + esc(t("wallets")) + '</button><button class="profile-action" id="profileLang">' + icon("globe") + esc(t("a_language")) + '</button><button class="profile-action profile-logout" id="profileLogout">Выйти из аккаунта</button></div>' +
           '<section class="level-progress"><div><span>' + esc(t("level_progress")) + '</span><b>' + esc((p.level || {}).label || "") + '</b></div><div class="level-track"><i style="width:' + levelProgress + '%"></i></div><small>' + esc(p.orders || 0) + ' / ' + esc(nextOrderTarget) + ' ' + esc(t("orders_word")) + '</small></section>' +
           '<h3 class="subhead">' + esc(t("deal_title")) + '</h3><div class="deal-history" id="profileDeals">' + dealRows + '</div>' +
         '</section>';
       document.getElementById("cardPalette").addEventListener("click", function (e) { e.stopPropagation(); cardThemeSheet(); });
       document.getElementById("profileWallets").addEventListener("click", function () { go("wallets"); });
       document.getElementById("profileLang").addEventListener("click", function () { go("language"); });
+      document.getElementById("profileLogout").addEventListener("click", async function () {
+        try { await api("/api/auth/logout", { method: "POST" }); window.location.reload(); }
+        catch (e) { toast(errText(e)); }
+      });
       view.querySelectorAll("[data-deal]").forEach(function (b) { b.addEventListener("click", function () { go("deal", b.getAttribute("data-deal")); }); });
       loadProfileAvatar();
     } catch (e) { toast(errText(e)); }
