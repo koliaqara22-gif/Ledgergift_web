@@ -53,7 +53,15 @@
     event.preventDefault();
     const submit = document.getElementById("webAuthSubmit"); submit.disabled = true;
     try { await request("/api/auth/" + (mode === "login" ? "login" : "register"), { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(form))) }); window.location.reload(); }
-    catch (error) { document.getElementById("webAuthHint").textContent = error.message === "nickname_exists" ? "Этот никнейм уже занят." : (error.message === "invalid_credentials" ? "Проверьте никнейм и пароль." : "Сервер сайта не запущен. Откройте сайт по ссылке после деплоя."); }
+    catch (error) {
+      const messages = {
+        nickname_exists: "Этот никнейм уже занят.",
+        invalid_credentials: "Проверьте никнейм и пароль.",
+        invalid_input: "Никнейм должен содержать минимум 2 символа, пароль — минимум 6.",
+        service_unavailable: "Сервис временно недоступен. Попробуйте ещё раз через минуту."
+      };
+      document.getElementById("webAuthHint").textContent = messages[error.message] || "Не удалось выполнить вход. Попробуйте ещё раз.";
+    }
     finally { submit.disabled = false; }
   });
   request("/api/me").then(function () { gate.remove(); const script = document.createElement("script"); script.src = "miniapp.js"; document.body.appendChild(script); }).catch(function () { gate.classList.add("show"); });
