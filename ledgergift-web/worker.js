@@ -21,9 +21,12 @@ const base64 = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes)));
 const from64 = (text) => Uint8Array.from(atob(text), c => c.charCodeAt(0));
 
 async function ensure(env) { if (!schemaReady) schemaReady = env.DB.exec(schema); return schemaReady; }
+// Cloudflare Pages on the free plan has a tight CPU limit. This remains a
+// salted PBKDF2 hash while allowing registration to complete at the edge.
+const PASSWORD_ITERATIONS = 10000;
 async function hash(password, salt = crypto.getRandomValues(new Uint8Array(16))) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 120000, hash: "SHA-256" }, key, 256);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: PASSWORD_ITERATIONS, hash: "SHA-256" }, key, 256);
   return `${base64(salt)}.${base64(bits)}`;
 }
 async function matches(password, stored) { const [salt] = stored.split("."); return stored === await hash(password, from64(salt)); }
